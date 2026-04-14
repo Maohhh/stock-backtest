@@ -36,18 +36,120 @@ class SinaDataSource:
             DataFrame with columns: date, open, high, low, close, volume
         """
         try:
-            # Sina API 实现
-            # TODO: 实现具体的 API 调用
-            pass
+            # 使用 Sina 历史数据接口
+            # symbol 转换: 000001.SZ -> sz000001, 000001.SH -> sh000001
+            sina_symbol = self._to_sina_symbol(symbol)
+            url = f"https://quotes.sina.cn/cn/api/quotes.php?symbol={sina_symbol}&source=chart"
+            
+            response = self.session.get(url, timeout=15)
+            response.raise_for_status()
+            
+            # Sina 返回的是 JavaScript 变量赋值格式，提取 JSON 部分
+            text = response.text
+            # 尝试直接解析为 JSON，或从 js 变量中提取
+            if text.startswith("var"):
+                json_start = text.find("{")
+                json_end = text.rfind("}") + 1
+                if json_start == -1 or json_end == 0:
+                    return None
+                data = json.loads(text[json_start:json_end])
+            else:
+                data = response.json()
+            
+            # Sina 日线数据通常在 data 或 result 中，格式为列表
+            # 不同接口返回结构可能不同，这里做兼容处理
+            records = data.get("data") or data.get("result") or data.get("day") or []
+            if not records:
+                return None
+            
+            # 统一解析为 DataFrame
+            rows = []
+            for record in records:
+                if isinstance(record, list) and len(record) >= 6:
+                    # [date, open, high, low, close, volume]
+                    rows.append({
+                        "date": record[0],
+                        "open": float(record[1]),
+                        "high": float(record[2]),
+                        "low": float(record[3]),
+                        "close": float(record[4]),
+                        "volume": float(record[5]),
+                    })
+                elif isinstance(record, dict):
+                    rows.append({
+                        "date": record.get("date") or record.get("day"),
+                        "open": float(record.get("open", 0)),
+                        "high": float(record.get("high", 0)),
+                        "low": float(record.get("low", 0)),
+                        "close": float(record.get("close", 0)),
+                        "volume": float(record.get("volume", 0)),
+                    })
+            
+            if not rows:
+                return None
+            
+            df = pd.DataFrame(rows)
+            df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
+            
+            # 按日期过滤
+            df = df[(df["date"] >= start) & (df["date"] <= end)].copy()
+            
+            if df.empty:
+                return None
+            
+            return df[["date", "open", "high", "low", "close", "volume"]]
+            
         except Exception as e:
             print(f"Sina 数据源获取失败: {e}")
             return None
     
+    def _to_sina_symbol(self, symbol: str) -> str:
+        """将标准股票代码转换为 Sina 格式"""
+        symbol = symbol.strip()
+        if "." in symbol:
+            code, exchange = symbol.split(".")
+            exchange = exchange.lower()
+            if exchange == "sz":
+                return f"sz{code}"
+            elif exchange == "sh":
+                return f"sh{code}"
+            elif exchange == "bj":
+                return f"bj{code}"
+        return symbol
+    
     def get_realtime_quote(self, symbol: str) -> Optional[dict]:
         """获取实时行情"""
         try:
-            # TODO: 实现实时行情获取
-            pass
+            sina_symbol = self._to_sina_symbol(symbol)
+            # Sina 实时行情接口
+            url = f"https://hq.sinajs.cn/list={sina_symbol}"
+            response = self.session.get(url, timeout=10)
+            response.encoding = "gb2312"
+            
+            text = response.text.strip()
+            # 格式: var hq_str_sz000001="..."
+            if "hq_str_" not in text:
+                return None
+            
+            parts = text.split('="')
+            if len(parts) < 2:
+                return None
+            
+            data_str = parts[1].rstrip('";')
+            fields = data_str.split(",")
+            
+            if len(fields) < 5:
+                return None
+            
+            return {
+                "symbol": symbol,
+                "name": fields[0] if len(fields) > 0 else "",
+                "open": float(fields[1]) if len(fields) > 1 else None,
+                "close": float(fields[2]) if len(fields) > 2 else None,
+                "current": float(fields[3]) if len(fields) > 3 else None,
+                "high": float(fields[4]) if len(fields) > 4 else None,
+                "low": float(fields[5]) if len(fields) > 5 else None,
+            }
         except Exception as e:
             print(f"Sina 实时行情获取失败: {e}")
             return None
