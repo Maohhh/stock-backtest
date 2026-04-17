@@ -5,6 +5,7 @@ from typing import Optional, Literal
 from datetime import datetime
 import requests
 import json
+import threading
 
 
 class SinaDataSource:
@@ -215,6 +216,133 @@ class AkShareDataSource:
             return None
 
 
+class BaostockDataSource:
+    """Baostock A股历史行情数据源"""
+
+    FIELDS = "date,code,open,high,low,close,volume,amount,adjustflag,turn,tradestatus"
+
+    def __init__(self):
+        try:
+            import baostock as bs
+            self.bs = bs
+        except ImportError:
+            raise ImportError("请先安装 baostock: pip install baostock")
+
+        self._lock = threading.Lock()
+        self._logged_in = False
+
+    def get_daily_data(
+        self,
+        symbol: str,
+        start: str,
+        end: str
+    ) -> Optional[pd.DataFrame]:
+        """
+        获取A股日线数据
+
+        Args:
+            symbol: 股票代码，如 "000001.SZ" 或 "600519.SH"
+            start: 开始日期，格式 "YYYY-MM-DD"
+            end: 结束日期，格式 "YYYY-MM-DD"
+
+        Returns:
+            DataFrame with columns: date, open, high, low, close, volume
+        """
+        try:
+            baostock_symbol = self._to_baostock_symbol(symbol)
+            if baostock_symbol is None:
+                return None
+
+            with self._lock:
+                if not self._ensure_login():
+                    return None
+
+                rs = self.bs.query_history_k_data_plus(
+                    baostock_symbol,
+                    self.FIELDS,
+                    start_date=start,
+                    end_date=end,
+                    frequency="d",
+                    adjustflag="2"  # 前复权，和 AkShare qfq 保持一致
+                )
+
+                if rs.error_code != "0":
+                    print(f"Baostock 查询失败: {rs.error_msg}")
+                    return None
+
+                rows = []
+                while rs.next():
+                    rows.append(rs.get_row_data())
+
+            if not rows:
+                return None
+
+            df = pd.DataFrame(rows, columns=rs.fields)
+            if df.empty:
+                return None
+
+            # 停牌日可能没有有效OHLC数据，回测只保留可交易K线。
+            if "tradestatus" in df.columns:
+                df = df[df["tradestatus"] == "1"].copy()
+
+            df = df.rename(columns={
+                "date": "date",
+                "open": "open",
+                "high": "high",
+                "low": "low",
+                "close": "close",
+                "volume": "volume",
+            })
+
+            for col in ["open", "high", "low", "close", "volume"]:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+
+            df = df.dropna(subset=["date", "open", "high", "low", "close"])
+            if df.empty:
+                return None
+
+            df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
+            df = df[(df["date"] >= start) & (df["date"] <= end)].copy()
+            df = df.sort_values("date").reset_index(drop=True)
+
+            return df[["date", "open", "high", "low", "close", "volume"]]
+
+        except Exception as e:
+            print(f"Baostock 数据源获取失败: {e}")
+            return None
+
+    def _ensure_login(self) -> bool:
+        """Baostock 需要先登录；失败时允许后续请求重试。"""
+        if self._logged_in:
+            return True
+
+        lg = self.bs.login()
+        if lg.error_code != "0":
+            print(f"Baostock 登录失败: {lg.error_msg}")
+            return False
+
+        self._logged_in = True
+        return True
+
+    def _to_baostock_symbol(self, symbol: str) -> Optional[str]:
+        """将标准股票代码转换为 Baostock 格式: 000001.SZ -> sz.000001"""
+        symbol = symbol.strip()
+        if "." not in symbol:
+            if symbol.startswith(("5", "6", "9")):
+                return f"sh.{symbol}"
+            if symbol.startswith(("0", "1", "2", "3")):
+                return f"sz.{symbol}"
+            if symbol.startswith(("4", "8")):
+                return f"bj.{symbol}"
+            return None
+
+        code, exchange = symbol.split(".", 1)
+        exchange = exchange.lower()
+        if exchange in {"sh", "sz", "bj"}:
+            return f"{exchange}.{code}"
+        return None
+
+
 class DataManager:
     """
     数据管理器
@@ -223,6 +351,7 @@ class DataManager:
     """
     
     def __init__(self):
+        self.baostock = BaostockDataSource()
         self.sina = SinaDataSource()
         self.akshare = AkShareDataSource()
     
@@ -231,7 +360,7 @@ class DataManager:
         symbol: str, 
         start: str, 
         end: str,
-        source: Literal["auto", "sina", "akshare"] = "auto"
+        source: Literal["auto", "baostock", "sina", "akshare"] = "auto"
     ) -> pd.DataFrame:
         """
         获取日线数据，支持自动 fallback
@@ -248,7 +377,13 @@ class DataManager:
         Raises:
             ValueError: 所有数据源都失败时抛出
         """
-        if source == "sina":
+        if source == "baostock":
+            df = self.baostock.get_daily_data(symbol, start, end)
+            if df is not None:
+                return df
+            raise ValueError(f"Baostock 数据源获取 {symbol} 数据失败")
+
+        elif source == "sina":
             df = self.sina.get_daily_data(symbol, start, end)
             if df is not None:
                 return df
@@ -261,17 +396,24 @@ class DataManager:
             raise ValueError(f"AkShare 数据源获取 {symbol} 数据失败")
         
         else:  # auto
-            # 先尝试 Sina
-            df = self.sina.get_daily_data(symbol, start, end)
+            # Baostock 对A股历史日线更稳定，且无需 token。
+            df = self.baostock.get_daily_data(symbol, start, end)
             if df is not None:
-                print(f"✅ 使用 Sina 数据源获取 {symbol} 数据")
+                print(f"✅ 使用 Baostock 数据源获取 {symbol} 数据")
                 return df
-            
+
             # Fallback 到 AkShare
-            print(f"⚠️ Sina 失败，尝试 AkShare 数据源...")
+            print(f"⚠️ Baostock 失败，尝试 AkShare 数据源...")
             df = self.akshare.get_daily_data(symbol, start, end)
             if df is not None:
                 print(f"✅ 使用 AkShare 数据源获取 {symbol} 数据")
+                return df
+
+            # 最后尝试 Sina
+            print(f"⚠️ AkShare 失败，尝试 Sina 数据源...")
+            df = self.sina.get_daily_data(symbol, start, end)
+            if df is not None:
+                print(f"✅ 使用 Sina 数据源获取 {symbol} 数据")
                 return df
             
             raise ValueError(f"所有数据源获取 {symbol} 数据均失败")

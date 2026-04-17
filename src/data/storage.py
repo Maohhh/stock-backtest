@@ -234,10 +234,10 @@ class ParquetStorage:
 class DataStorage:
     """统一数据存储接口"""
     
-    def __init__(self, backend: str = "sqlite", **kwargs):
+    def __init__(self, backend: str = "parquet", **kwargs):
         """
         Args:
-            backend: "sqlite" 或 "parquet"
+            backend: "sqlite" 或 "parquet" (默认parquet，速度更快)
         """
         if backend == "sqlite":
             self.storage = SQLiteStorage(**kwargs)
@@ -258,6 +258,18 @@ class DataStorage:
         end: Optional[str] = None
     ) -> Optional[pd.DataFrame]:
         return self.storage.load_daily_data(symbol, start, end)
+    
+    # 别名方法，方便使用
+    def save_to_parquet(self, df: pd.DataFrame, symbol: str) -> None:
+        """保存到Parquet（兼容接口）"""
+        if self.backend == "parquet":
+            self.storage.save_daily_data(symbol, df)
+        else:
+            raise ValueError("当前后端不是parquet")
+    
+    def load_from_parquet(self, symbol: str, start: Optional[str] = None, end: Optional[str] = None) -> Optional[pd.DataFrame]:
+        """从Parquet加载（兼容接口）"""
+        return self.load_daily_data(symbol, start, end)
     
     def list_symbols(self) -> List[str]:
         return self.storage.list_symbols()
