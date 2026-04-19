@@ -54,7 +54,7 @@ def quick_backtest(
         '买入持有': BuyAndHoldStrategy(),
         '均线交叉(5/20)': MovingAverageCrossStrategy(short_window=5, long_window=20),
         '均线交叉(10/60)': MovingAverageCrossStrategy(short_window=10, long_window=60),
-        'RSI(14)': RSIStrategy(rsi_period=14, oversold=30, overbought=70),
+        'RSI(14)': RSIStrategy(period=14, oversold=30, overbought=70),
         'MACD': MACDStrategy(),
         '布林带': BollingerStrategy(),
         'KDJ': KDJStrategy(),
@@ -66,15 +66,14 @@ def quick_backtest(
     print("-" * 80)
     
     results = []
-    engine = BacktestEngine(initial_cash=initial_cash)
-    
     for name, strategy in strategies.items():
+        engine = BacktestEngine(initial_cash=initial_cash)
         result = engine.run(strategy=strategy, data=df)
         results.append({
             'strategy': name,
             'final_value': result['final_value'],
             'total_return': result['total_return'],
-            'trade_count': result['trade_count'],
+            'trade_count': result['total_trades'],
             'win_rate': result.get('win_rate', 0),
         })
     
@@ -120,7 +119,7 @@ def batch_backtest(
     strategies = {
         '买入持有': BuyAndHoldStrategy(),
         '均线交叉': MovingAverageCrossStrategy(short_window=5, long_window=20),
-        'RSI': RSIStrategy(rsi_period=14, oversold=30, overbought=70),
+        'RSI': RSIStrategy(period=14, oversold=30, overbought=70),
         'MACD': MACDStrategy(),
         '布林带': BollingerStrategy(),
         'KDJ': KDJStrategy(),
@@ -136,21 +135,20 @@ def batch_backtest(
     print("-" * 80)
     
     results = []
-    engine = BacktestEngine(initial_cash=100000)
-    
     for symbol in symbols:
         df = storage.load_from_parquet(symbol, start=start_date, end=end_date)
         if df is None or df.empty:
             print(f"⏭️  {symbol}: 无本地数据")
             continue
         
+        engine = BacktestEngine(initial_cash=100000)
         result = engine.run(strategy=strategy, data=df)
         results.append({
             'symbol': symbol,
             'days': len(df),
             'final_value': result['final_value'],
             'total_return': result['total_return'],
-            'trade_count': result['trade_count'],
+            'trade_count': result['total_trades'],
         })
         
         print(f"✅ {symbol}: {result['total_return']*100:+.2f}% ({len(df)}天)")

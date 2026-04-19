@@ -124,19 +124,19 @@ class MainForceResonanceStrategy(BaseStrategy):
             context: 包含当前bar数据的字典
             
         Returns:
-            交易信号字典，包含action和amount
+            交易信号字典，包含direction和amount
         """
         # 获取当前数据
         df = context.get('data', pd.DataFrame())
         if df.empty:
-            return {'action': 'hold', 'amount': 0}
+            return None
         
         # 生成信号
         signals = self.generate_signals(df)
         
         # 获取最新信号
         if signals.empty:
-            return {'action': 'hold', 'amount': 0}
+            return None
         
         latest = signals.iloc[-1]
         signal = latest['signal']
@@ -144,11 +144,10 @@ class MainForceResonanceStrategy(BaseStrategy):
         
         # 转换为交易动作
         if signal == 1:
-            return {'action': 'buy', 'amount': position}
+            return {'direction': 'buy', 'amount': int(position * 100)}
         elif signal == -1:
-            return {'action': 'sell', 'amount': 1.0}
-        else:
-            return {'action': 'hold', 'amount': 0}
+            return {'direction': 'sell', 'amount': 100}
+        return None
     
     def get_required_columns(self) -> list:
         """返回策略所需的数据列"""
