@@ -1,15 +1,18 @@
 {
-  期货求魔交易系统 - 通达信主图叠加指标 (v4)
+  期货求魔交易系统 - 通达信主图叠加指标 (v5)
   来源:  bilibili UP「期货求魔」9 集教学
   方法论详见 ../METHOD.md
   建议周期: 5 分钟 K 线
 
-  v4 修订:
-    - DRAWICON 换成 DRAWTEXT 明文 (买/卖/平多/平空/减/极), 不再依赖各家
-      平台 ICON 表 (通达信 ICON 1/2/3 是 "B/S/空" 文字, 容易被误以为是 bug)
-    - 增加 IN_LONG / IN_SHORT 仓位状态代理 (基于 BARSLAST 比较), 只在估
-      计仍在仓位时显示出场标记, 否则震荡市每次 MA250 上下穿都会标 "平"
-    - 颜色按中国期货习惯: 买/多头 = 红, 卖/空头 = 绿, 出场 = 黄, 警告 = 白
+  v5 修订:
+    - 放宽入场: 去掉 C > HHV(HIGH, 7) 突破确认 (太严, 震荡市几乎不触发)
+      默认改为 "NL + 收盘站上 MA250 + 趋势非背离"
+      想恢复严格模式: 把 STRICT_MODE 改 1
+    - 仓位状态代理增加: 反向信号或最长持仓 200 根 自动平仓 (避免 IN_LONG
+      在单边趋势中无限期保持 TRUE, 导致 '减' 无限刷屏)
+    - 加诊断小点: NL/NH 靠近 MA250 的 pivot 都画一个紫点, 即使没入场你也
+      能看到 "系统识别到回踩"
+    - 颜色调整: 买/卖 用高对比 COLORYELLOW, 平 用 COLORCYAN
 }
 
 { ===== 三条均线 ===== }
@@ -25,7 +28,7 @@ UPT := SLP > SLP_E;
 DNT := SLP < -SLP_E;
 RNG := NOT(UPT) AND NOT(DNT);
 
-{ ===== Pivot 检测 (左右各 K 根的极值; K 根后确认) ===== }
+{ ===== Pivot 检测 ===== }
 K := 3;
 PL := REF(LOW, K)  = LLV(LOW, 2*K+1);
 PH := REF(HIGH, K) = HHV(HIGH, 2*K+1);
@@ -35,23 +38,39 @@ NEARP := 0.3;
 NL := PL AND ABS(REF(LOW, K)  - REF(MA250, K)) / REF(MA250, K) * 100 <= NEARP;
 NH := PH AND ABS(REF(HIGH, K) - REF(MA250, K)) / REF(MA250, K) * 100 <= NEARP;
 
-{ ===== 入场基本信号 ===== }
-BUY_BASE  := NL AND C > MA250 AND C > HHV(HIGH, 7) AND (UPT OR RNG);
-SELL_BASE := NH AND C < MA250 AND C < LLV(LOW, 7) AND (DNT OR RNG);
+{ ===== 入场信号 =====
+  STRICT_MODE = 1 启用突破确认 (NL + 收盘破 7 根高); 默认 0 仅要求收盘站上 MA250
+}
+STRICT_MODE := 0;
+
+BUY_BASE_LOOSE  := NL AND C > MA250 AND (UPT OR RNG);
+BUY_BASE_STRICT := BUY_BASE_LOOSE AND C > HHV(HIGH, 7);
+BUY_BASE := (STRICT_MODE = 1 AND BUY_BASE_STRICT) OR (STRICT_MODE = 0 AND BUY_BASE_LOOSE);
+
+SELL_BASE_LOOSE  := NH AND C < MA250 AND (DNT OR RNG);
+SELL_BASE_STRICT := SELL_BASE_LOOSE AND C < LLV(LOW, 7);
+SELL_BASE := (STRICT_MODE = 1 AND SELL_BASE_STRICT) OR (STRICT_MODE = 0 AND SELL_BASE_LOOSE);
 
 { ===== 出场基本事件 ===== }
-X_LONG_WARN  := CROSS(MA120, C);   { 收盘跌破 MA120 -> 减仓警告 }
-X_LONG_FULL  := CROSS(MA250, C);   { 收盘跌破 MA250 -> 全平 }
+X_LONG_WARN  := CROSS(MA120, C);
+X_LONG_FULL  := CROSS(MA250, C);
 X_SHORT_WARN := CROSS(C, MA120);
 X_SHORT_FULL := CROSS(C, MA250);
 
-{ ===== 仓位状态代理 =====
-  IN_LONG = 最近一次开多比最近一次平多更新 -> 估计仍在多仓
-  这只是个粗略代理 (不知道你实际加减仓), 但足够过滤掉 "我现在没仓位
-  却显示平多" 的噪音
-}
-IN_LONG  := BARSLAST(BUY_BASE)  < BARSLAST(X_LONG_FULL);
-IN_SHORT := BARSLAST(SELL_BASE) < BARSLAST(X_SHORT_FULL);
+{ ===== 仓位状态代理 (v5: 加入反向信号 + 最长 200 根持仓自动出局) ===== }
+MAX_HOLD := 200;
+
+LAST_BUY := BARSLAST(BUY_BASE);
+LAST_END_LONG_A := BARSLAST(X_LONG_FULL);
+LAST_END_LONG_B := BARSLAST(SELL_BASE);     { 出现反向信号视为平多 }
+LAST_END_LONG := MIN(LAST_END_LONG_A, LAST_END_LONG_B);
+IN_LONG := LAST_BUY < LAST_END_LONG AND LAST_BUY <= MAX_HOLD;
+
+LAST_SELL := BARSLAST(SELL_BASE);
+LAST_END_SHORT_A := BARSLAST(X_SHORT_FULL);
+LAST_END_SHORT_B := BARSLAST(BUY_BASE);
+LAST_END_SHORT := MIN(LAST_END_SHORT_A, LAST_END_SHORT_B);
+IN_SHORT := LAST_SELL < LAST_END_SHORT AND LAST_SELL <= MAX_HOLD;
 
 { ===== 经持仓状态过滤的出场信号 ===== }
 EXIT_LONG_WARN  := X_LONG_WARN  AND IN_LONG;
@@ -59,22 +78,26 @@ EXIT_LONG_FULL  := X_LONG_FULL  AND IN_LONG;
 EXIT_SHORT_WARN := X_SHORT_WARN AND IN_SHORT;
 EXIT_SHORT_FULL := X_SHORT_FULL AND IN_SHORT;
 
-{ ===== 价差极端 (持仓时 = 全部止盈) ===== }
+{ ===== 价差极端 ===== }
 EXT_N := 1200;
 SPD := C - MA250;
 EXT_L := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD > 0 AND IN_LONG;
 EXT_S := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD < 0 AND IN_SHORT;
 
-{ ===== 主图标记 (DRAWTEXT 明文) ===== }
-DRAWTEXT(BUY_BASE,         LOW  * 0.998, '买'),   COLORRED;
-DRAWTEXT(SELL_BASE,        HIGH * 1.002, '卖'),   COLORGREEN;
-DRAWTEXT(EXIT_LONG_FULL,   HIGH * 1.002, '平多'), COLORYELLOW;
-DRAWTEXT(EXIT_SHORT_FULL,  LOW  * 0.998, '平空'), COLORYELLOW;
+{ ===== 诊断点: 所有 NL / NH 都画一个紫点, 让你看到回踩在哪里被识别 ===== }
+DRAWTEXT(NL, LOW  * 0.997, '·'), COLORMAGENTA;
+DRAWTEXT(NH, HIGH * 1.003, '·'), COLORMAGENTA;
+
+{ ===== 主图标记 ===== }
+DRAWTEXT(BUY_BASE,         LOW  * 0.995, '买'),   COLORYELLOW;
+DRAWTEXT(SELL_BASE,        HIGH * 1.005, '卖'),   COLORYELLOW;
+DRAWTEXT(EXIT_LONG_FULL,   HIGH * 1.002, '平多'), COLORCYAN;
+DRAWTEXT(EXIT_SHORT_FULL,  LOW  * 0.998, '平空'), COLORCYAN;
 DRAWTEXT(EXIT_LONG_WARN,   HIGH * 1.002, '减'),   COLORWHITE;
 DRAWTEXT(EXIT_SHORT_WARN,  LOW  * 0.998, '减'),   COLORWHITE;
-DRAWTEXT(EXT_L,            HIGH * 1.005, '极'),   COLORYELLOW;
-DRAWTEXT(EXT_S,            LOW  * 0.995, '极'),   COLORYELLOW;
+DRAWTEXT(EXT_L,            HIGH * 1.005, '极'),   COLORCYAN;
+DRAWTEXT(EXT_S,            LOW  * 0.995, '极'),   COLORCYAN;
 
-{ ===== 趋势染色 (K 线下/上贴一条短柱) ===== }
+{ ===== 趋势染色 ===== }
 STICKLINE(UPT, LOW,  LOW  * 0.998, 1.5, 0), COLORRED;
 STICKLINE(DNT, HIGH, HIGH * 1.002, 1.5, 0), COLORGREEN;
