@@ -114,6 +114,10 @@ def qiumo(
         ``close - MA(slow)``.
     spread_pct
         ``spread / MA(slow)``.
+    mid_minus_slow
+        ``(MA(mid) - MA(slow)) / close``. A leading indicator of MA(slow)
+        slope reversal; widening = slope about to steepen further;
+        re-convergence often precedes regime change.
     spread_extreme_long, spread_extreme_short
         ``True`` when an open long/short is overextended (take-all-profit
         trigger).
@@ -265,6 +269,12 @@ def qiumo(
 
     out["spread"] = close - out["ma_slow"]
     out["spread_pct"] = out["spread"] / out["ma_slow"]
+
+    # MA(mid) − MA(slow) spread: a leading indicator of MA(slow) slope
+    # turning. When this spread widens, MA(slow) is about to steepen the
+    # same direction; widely diverging then re-converging often coincides
+    # with regime shifts. Normalized by price so the threshold is unitless.
+    out["mid_minus_slow"] = (out["ma_mid"] - out["ma_slow"]) / close
 
     abs_spread = out["spread"].abs()
     # rolling percentile rank: where today's |spread| sits within the last
