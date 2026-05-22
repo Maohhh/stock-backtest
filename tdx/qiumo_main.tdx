@@ -1,18 +1,16 @@
 {
-  期货求魔交易系统 - 通达信主图叠加指标 (v5)
+  期货求魔交易系统 - 通达信主图叠加指标 (v6 - 忠于讲解原文)
   来源:  bilibili UP「期货求魔」9 集教学
   方法论详见 ../METHOD.md
-  建议周期: 5 分钟 K 线
 
-  v5 修订:
-    - 放宽入场: 去掉 C > HHV(HIGH, 7) 突破确认 (太严, 震荡市几乎不触发)
-      默认改为 "NL + 收盘站上 MA250 + 趋势非背离"
-      想恢复严格模式: 把 STRICT_MODE 改 1
-    - 仓位状态代理增加: 反向信号或最长持仓 200 根 自动平仓 (避免 IN_LONG
-      在单边趋势中无限期保持 TRUE, 导致 '减' 无限刷屏)
-    - 加诊断小点: NL/NH 靠近 MA250 的 pivot 都画一个紫点, 即使没入场你也
-      能看到 "系统识别到回踩"
-    - 颜色调整: 买/卖 用高对比 COLORYELLOW, 平 用 COLORCYAN
+  v6 核心改动: 严格按 5_03 讲解的两类入场信号实现
+    Signal 1 (理想型): K线突破 MA250 -> 回踩到 MA250 守住没破 -> 突破前期高点 -> 入场
+    Signal 2 (洗盘型): K线突破 MA250 -> 回踩跌破 MA250 (假突破) -> 重新站上 MA250 -> 突破前期高点 -> 入场
+  共同前提都是 "突破回踩之间形成的前期高点 (即 swing 高)"
+  做空镜像同理
+
+  可视化: 信号位置画一条粗短线指向对应 K 线, 标签放在线条另一端
+  建议周期: 5 分钟 K 线
 }
 
 { ===== 三条均线 ===== }
@@ -20,7 +18,7 @@ MA20:   MA(C, 20),  COLORWHITE,  LINETHICK1;
 MA120:  MA(C, 120), COLORYELLOW, LINETHICK1;
 MA250:  MA(C, 250), COLORMAGENTA,LINETHICK2;
 
-{ ===== MA250 斜率与趋势状态 ===== }
+{ ===== MA250 斜率 / 多空分界 ===== }
 SLP_N := 10;
 SLP   := (MA250 - REF(MA250, SLP_N)) / C;
 SLP_E := 0.0001;
@@ -28,76 +26,97 @@ UPT := SLP > SLP_E;
 DNT := SLP < -SLP_E;
 RNG := NOT(UPT) AND NOT(DNT);
 
-{ ===== Pivot 检测 ===== }
+{ ===== Pivot 检测 (左右各 K 根的极值) ===== }
 K := 3;
+NEARP := 0.3;
 PL := REF(LOW, K)  = LLV(LOW, 2*K+1);
 PH := REF(HIGH, K) = HHV(HIGH, 2*K+1);
-
-{ ===== 靠近 MA250 的 pivot ===== }
-NEARP := 0.3;
 NL := PL AND ABS(REF(LOW, K)  - REF(MA250, K)) / REF(MA250, K) * 100 <= NEARP;
 NH := PH AND ABS(REF(HIGH, K) - REF(MA250, K)) / REF(MA250, K) * 100 <= NEARP;
 
-{ ===== 入场信号 =====
-  STRICT_MODE = 1 启用突破确认 (NL + 收盘破 7 根高); 默认 0 仅要求收盘站上 MA250
+{ ===== 回踩类型区分 (5_03 原文核心区别) ===== }
+{ NL_HELD: 回踩低点 >= MA250 (得到MA250支撑) -> Signal 1 理想型 }
+{ NL_BROKE: 回踩低点 < MA250 (假突破) -> Signal 2 洗盘型 }
+NL_HELD  := NL AND REF(LOW, K)  >= REF(MA250, K);
+NL_BROKE := NL AND REF(LOW, K)  <  REF(MA250, K);
+NH_HELD  := NH AND REF(HIGH, K) <= REF(MA250, K);
+NH_BROKE := NH AND REF(HIGH, K) >  REF(MA250, K);
+
+{ ===== 前期高/低: 回踩之前 20 根 K 线的极值 =====
+  REF(HHV(HIGH, 20), K+1) = 回踩 (K 根前) 再往前 20 根的最高
+  这就是讲解里 "突破前面的高点" 的那个高点
 }
-STRICT_MODE := 0;
+PRE_HIGH := REF(HHV(HIGH, 20), K + 1);
+PRE_LOW  := REF(LLV(LOW,  20), K + 1);
 
-BUY_BASE_LOOSE  := NL AND C > MA250 AND (UPT OR RNG);
-BUY_BASE_STRICT := BUY_BASE_LOOSE AND C > HHV(HIGH, 7);
-BUY_BASE := (STRICT_MODE = 1 AND BUY_BASE_STRICT) OR (STRICT_MODE = 0 AND BUY_BASE_LOOSE);
+{ ===== 入场信号 (严格遵照讲解) ===== }
+{ Signal 1 理想型 + Signal 2 洗盘型 - 都要求 "突破前期高/低" }
+LONG_S1 := NL_HELD  AND C > PRE_HIGH AND C > MA250 AND (UPT OR RNG);
+LONG_S2 := NL_BROKE AND C > PRE_HIGH AND C > MA250 AND (UPT OR RNG);
+BUY_BASE := LONG_S1 OR LONG_S2;
 
-SELL_BASE_LOOSE  := NH AND C < MA250 AND (DNT OR RNG);
-SELL_BASE_STRICT := SELL_BASE_LOOSE AND C < LLV(LOW, 7);
-SELL_BASE := (STRICT_MODE = 1 AND SELL_BASE_STRICT) OR (STRICT_MODE = 0 AND SELL_BASE_LOOSE);
+SHORT_S1 := NH_HELD  AND C < PRE_LOW AND C < MA250 AND (DNT OR RNG);
+SHORT_S2 := NH_BROKE AND C < PRE_LOW AND C < MA250 AND (DNT OR RNG);
+SELL_BASE := SHORT_S1 OR SHORT_S2;
 
-{ ===== 出场基本事件 ===== }
-X_LONG_WARN  := CROSS(MA120, C);
-X_LONG_FULL  := CROSS(MA250, C);
+{ ===== 出场基本事件 (5_04 三档移动平仓) ===== }
+X_LONG_WARN  := CROSS(MA120, C);   { 跌破 MA120 -> 减仓警告 }
+X_LONG_FULL  := CROSS(MA250, C);   { 跌破 MA250 -> 全平 }
 X_SHORT_WARN := CROSS(C, MA120);
 X_SHORT_FULL := CROSS(C, MA250);
 
-{ ===== 仓位状态代理 (v5: 加入反向信号 + 最长 200 根持仓自动出局) ===== }
+{ ===== 仓位状态代理 (反向信号 + 最长 200 根自动出局) ===== }
 MAX_HOLD := 200;
-
-LAST_BUY := BARSLAST(BUY_BASE);
-LAST_END_LONG_A := BARSLAST(X_LONG_FULL);
-LAST_END_LONG_B := BARSLAST(SELL_BASE);     { 出现反向信号视为平多 }
-LAST_END_LONG := MIN(LAST_END_LONG_A, LAST_END_LONG_B);
-IN_LONG := LAST_BUY < LAST_END_LONG AND LAST_BUY <= MAX_HOLD;
+LAST_BUY  := BARSLAST(BUY_BASE);
+LAST_END_LONG  := MIN(BARSLAST(X_LONG_FULL),  BARSLAST(SELL_BASE));
+IN_LONG  := LAST_BUY  < LAST_END_LONG  AND LAST_BUY  <= MAX_HOLD;
 
 LAST_SELL := BARSLAST(SELL_BASE);
-LAST_END_SHORT_A := BARSLAST(X_SHORT_FULL);
-LAST_END_SHORT_B := BARSLAST(BUY_BASE);
-LAST_END_SHORT := MIN(LAST_END_SHORT_A, LAST_END_SHORT_B);
+LAST_END_SHORT := MIN(BARSLAST(X_SHORT_FULL), BARSLAST(BUY_BASE));
 IN_SHORT := LAST_SELL < LAST_END_SHORT AND LAST_SELL <= MAX_HOLD;
 
-{ ===== 经持仓状态过滤的出场信号 ===== }
 EXIT_LONG_WARN  := X_LONG_WARN  AND IN_LONG;
 EXIT_LONG_FULL  := X_LONG_FULL  AND IN_LONG;
 EXIT_SHORT_WARN := X_SHORT_WARN AND IN_SHORT;
 EXIT_SHORT_FULL := X_SHORT_FULL AND IN_SHORT;
 
-{ ===== 价差极端 ===== }
+{ ===== 价差极端 (1 年最大价差近似 -> 全部止盈) ===== }
 EXT_N := 1200;
 SPD := C - MA250;
 EXT_L := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD > 0 AND IN_LONG;
 EXT_S := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD < 0 AND IN_SHORT;
 
-{ ===== 诊断点: 所有 NL / NH 都画一个紫点, 让你看到回踩在哪里被识别 ===== }
-DRAWTEXT(NL, LOW  * 0.997, '·'), COLORMAGENTA;
-DRAWTEXT(NH, HIGH * 1.003, '·'), COLORMAGENTA;
+{ ===== 可视化: STICKLINE 短线 "指向" 对应 K 线 ===== }
+{ 模式: 短线条紧贴 K 线一端, 标签在另一端, 一目了然指向哪根 K 线 }
 
-{ ===== 主图标记 ===== }
-DRAWTEXT(BUY_BASE,         LOW  * 0.995, '买'),   COLORYELLOW;
-DRAWTEXT(SELL_BASE,        HIGH * 1.005, '卖'),   COLORYELLOW;
-DRAWTEXT(EXIT_LONG_FULL,   HIGH * 1.002, '平多'), COLORCYAN;
-DRAWTEXT(EXIT_SHORT_FULL,  LOW  * 0.998, '平空'), COLORCYAN;
-DRAWTEXT(EXIT_LONG_WARN,   HIGH * 1.002, '减'),   COLORWHITE;
-DRAWTEXT(EXIT_SHORT_WARN,  LOW  * 0.998, '减'),   COLORWHITE;
-DRAWTEXT(EXT_L,            HIGH * 1.005, '极'),   COLORCYAN;
-DRAWTEXT(EXT_S,            LOW  * 0.995, '极'),   COLORCYAN;
+{ 买入 (黄色 短线在 K 下方, "买"标签在更下方) }
+STICKLINE(BUY_BASE, LOW * 0.997, LOW * 0.989, 2.0, 0), COLORYELLOW;
+DRAWTEXT(BUY_BASE, LOW * 0.985, '买'), COLORYELLOW;
 
-{ ===== 趋势染色 ===== }
-STICKLINE(UPT, LOW,  LOW  * 0.998, 1.5, 0), COLORRED;
-STICKLINE(DNT, HIGH, HIGH * 1.002, 1.5, 0), COLORGREEN;
+{ 卖出 (黄色 短线在 K 上方, "卖"标签在更上方) }
+STICKLINE(SELL_BASE, HIGH * 1.003, HIGH * 1.011, 2.0, 0), COLORYELLOW;
+DRAWTEXT(SELL_BASE, HIGH * 1.015, '卖'), COLORYELLOW;
+
+{ 全平多 (青色 短线在 K 上方) }
+STICKLINE(EXIT_LONG_FULL, HIGH * 1.002, HIGH * 1.008, 1.5, 0), COLORCYAN;
+DRAWTEXT(EXIT_LONG_FULL, HIGH * 1.011, '平多'), COLORCYAN;
+
+{ 全平空 (青色 短线在 K 下方) }
+STICKLINE(EXIT_SHORT_FULL, LOW * 0.998, LOW * 0.992, 1.5, 0), COLORCYAN;
+DRAWTEXT(EXIT_SHORT_FULL, LOW * 0.989, '平空'), COLORCYAN;
+
+{ 减仓警告 (白色 细短线) }
+STICKLINE(EXIT_LONG_WARN, HIGH * 1.002, HIGH * 1.005, 0.8, 0), COLORWHITE;
+DRAWTEXT(EXIT_LONG_WARN, HIGH * 1.008, '减'), COLORWHITE;
+STICKLINE(EXIT_SHORT_WARN, LOW * 0.998, LOW * 0.995, 0.8, 0), COLORWHITE;
+DRAWTEXT(EXIT_SHORT_WARN, LOW * 0.992, '减'), COLORWHITE;
+
+{ 极端价差 (紫色 中等短线) }
+STICKLINE(EXT_L, HIGH * 1.005, HIGH * 1.013, 1.0, 0), COLORMAGENTA;
+DRAWTEXT(EXT_L, HIGH * 1.017, '极'), COLORMAGENTA;
+STICKLINE(EXT_S, LOW * 0.995, LOW * 0.987, 1.0, 0), COLORMAGENTA;
+DRAWTEXT(EXT_S, LOW * 0.983, '极'), COLORMAGENTA;
+
+{ ===== 趋势染色 (淡淡的) ===== }
+STICKLINE(UPT AND NOT(BUY_BASE), LOW, LOW * 0.999, 0.5, 0), COLORRED;
+STICKLINE(DNT AND NOT(SELL_BASE), HIGH, HIGH * 1.001, 0.5, 0), COLORGREEN;
