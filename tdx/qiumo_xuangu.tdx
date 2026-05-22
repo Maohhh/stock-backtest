@@ -1,0 +1,33 @@
+{
+  期货求魔系统 — 通达信选股 / 预警公式 (做多入场扫描)
+  使用方式:
+    1. 在 通达信 -> 公式管理器 -> 条件选股公式 中新建
+    2. 把整段粘贴进去
+    3. 选股周期选 5 分钟 (期货则用 5min 周期合约)
+    4. 选股 -> 跑出当前满足 多头入场 信号 的合约/股票列表
+  做空版把 CC 替换成 -CC (或自己镜像一份).
+}
+
+{ ===== 同主图的核心计算 ===== }
+SLOPE_N := 10;
+K := 3;
+NEAR_PCT := 0.3;
+
+MA250 := MA(C, 250);
+MA120 := MA(C, 120);
+
+SLOPE := (MA250 - REF(MA250, SLOPE_N)) / C;
+UPT   := SLOPE > 0.0001;
+RNG   := NOT(UPT) AND NOT(SLOPE < -0.0001);
+
+PL := REF(LOW, K) = LLV(LOW, 2*K+1);
+NL := PL AND ABS(REF(LOW, K) - REF(MA250, K)) / REF(MA250, K) * 100 <= NEAR_PCT;
+
+LAST_NL := VALUEWHEN(1, NL, REF(LOW, K));
+PREV_NL := VALUEWHEN(2, NL, REF(LOW, K));
+
+LONG_S2 := NL AND LAST_NL > PREV_NL AND C > MA250 AND (UPT OR RNG);
+LONG_S1 := NL AND LAST_NL >= PREV_NL AND C > HHV(HIGH, 7) AND (UPT OR RNG);
+
+{ ===== 选股结果 ===== }
+CC: LONG_S1 OR LONG_S2;
