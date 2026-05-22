@@ -2,7 +2,14 @@
 
 来源：bilibili UP「期货求魔」9 集教学。完整方法论见 [`METHOD.md`](../METHOD.md)，Python 实现见 [`src/indicators/qiumo.py`](../src/indicators/qiumo.py)。
 
-## v6 严格按讲解原文实现的入场逻辑
+## v7 严格趋势跟随版 — 入场逻辑
+
+v7 在 v6 基础上做两处严格化：
+
+- **入场要求严格趋势方向**：做多只在 `UPT`（MA250 上斜），做空只在 `DNT`（MA250 下斜），震荡时观望——符合"均线回踩型趋势跟随"的本质。
+- **`MAX_HOLD` 从 200 提到 1500**（≈ 5min 周期一个月），贴近讲解"几天到一两个月"的持仓口径。
+
+### 入场触发逻辑（与 v6 一致，方向更严格）
 
 5_03 原文里清晰区分了两类入场：
 
@@ -37,7 +44,7 @@
 
 ```
 {
-  期货求魔交易系统 - 通达信主图叠加指标 (v6)
+  期货求魔交易系统 - 通达信主图叠加指标 (v7)
   建议周期: 5 分钟 K 线
 }
 
@@ -73,12 +80,12 @@ PRE_HIGH := REF(HHV(HIGH, 20), K + 1);
 PRE_LOW  := REF(LLV(LOW,  20), K + 1);
 
 { ===== 入场信号 (严格按 5_03 讲解) ===== }
-LONG_S1 := NL_HELD  AND C > PRE_HIGH AND C > MA250 AND (UPT OR RNG);
-LONG_S2 := NL_BROKE AND C > PRE_HIGH AND C > MA250 AND (UPT OR RNG);
+LONG_S1 := NL_HELD  AND C > PRE_HIGH AND C > MA250 AND UPT;
+LONG_S2 := NL_BROKE AND C > PRE_HIGH AND C > MA250 AND UPT;
 BUY_BASE := LONG_S1 OR LONG_S2;
 
-SHORT_S1 := NH_HELD  AND C < PRE_LOW AND C < MA250 AND (DNT OR RNG);
-SHORT_S2 := NH_BROKE AND C < PRE_LOW AND C < MA250 AND (DNT OR RNG);
+SHORT_S1 := NH_HELD  AND C < PRE_LOW AND C < MA250 AND DNT;
+SHORT_S2 := NH_BROKE AND C < PRE_LOW AND C < MA250 AND DNT;
 SELL_BASE := SHORT_S1 OR SHORT_S2;
 
 { ===== 出场 ===== }
@@ -88,7 +95,7 @@ X_SHORT_WARN := CROSS(C, MA120);
 X_SHORT_FULL := CROSS(C, MA250);
 
 { ===== 仓位状态代理 ===== }
-MAX_HOLD := 200;
+MAX_HOLD := 1500;
 LAST_BUY := BARSLAST(BUY_BASE);
 LAST_END_LONG := MIN(BARSLAST(X_LONG_FULL), BARSLAST(SELL_BASE));
 IN_LONG := LAST_BUY < LAST_END_LONG AND LAST_BUY <= MAX_HOLD;
@@ -175,7 +182,7 @@ STICKLINE(DNT AND NOT(SELL_BASE), HIGH, HIGH * 1.001, 0.5, 0), COLORGREEN;
 | `SLP_E` | 0.0001 | 斜率阈值，越大越严格 |
 | `K` | 3 | swing 半宽 |
 | `NEARP` | 0.3 | 视为靠近 MA250 的百分比距离 |
-| `MAX_HOLD` | 200 | 仓位状态最长保持根数（200×5min ≈ 4 个交易日）|
+| `MAX_HOLD` | 1500 | 仓位状态最长保持根数（1500×5min ≈ 1 个月）|
 | `EXT_N` | 1200 | 价差极端窗口 |
 
 ## 与 Python 版的差异
@@ -195,3 +202,4 @@ STICKLINE(DNT AND NOT(SELL_BASE), HIGH, HIGH * 1.001, 0.5, 0), COLORGREEN;
 | v3→v4 | DRAWICON 1/3 显示为 "B"/"空" → 改 DRAWTEXT 明文；加 IN_LONG/IN_SHORT 代理 |
 | v4→v5 | 入场太严 + 仓位状态永不出局 → 放宽默认入场、加 MAX_HOLD |
 | v5→v6 | 偏离讲解原文 → 回归严格 Signal 1（理想型，回踩守住）+ Signal 2（洗盘型，回踩假突破）+ 共同要求"突破前期高"；DRAWTEXT 改 STICKLINE + DRAWTEXT，线条指向具体 K 线 |
+| v6→v7 | 入场允许 `UPT OR RNG` 偏离"严格趋势跟随"本质 → 改为只在 `UPT`/`DNT` 入场，震荡观望；`MAX_HOLD` 从 200 提到 1500 根（~1 个月），贴近讲解持仓周期口径 |

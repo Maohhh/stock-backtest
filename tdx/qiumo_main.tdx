@@ -1,15 +1,20 @@
 {
-  期货求魔交易系统 - 通达信主图叠加指标 (v6 - 忠于讲解原文)
+  期货求魔交易系统 - 通达信主图叠加指标 (v7 - 严格趋势跟随版)
   来源:  bilibili UP「期货求魔」9 集教学
   方法论详见 ../METHOD.md
 
-  v6 核心改动: 严格按 5_03 讲解的两类入场信号实现
-    Signal 1 (理想型): K线突破 MA250 -> 回踩到 MA250 守住没破 -> 突破前期高点 -> 入场
-    Signal 2 (洗盘型): K线突破 MA250 -> 回踩跌破 MA250 (假突破) -> 重新站上 MA250 -> 突破前期高点 -> 入场
-  共同前提都是 "突破回踩之间形成的前期高点 (即 swing 高)"
-  做空镜像同理
+  v7 严格化:
+    入场要求方向严格 (做多只在 UPT, 做空只在 DNT) — 震荡观望, 符合 "均
+    线回踩型趋势跟随" 的本质
+    MAX_HOLD 从 200 提到 1500 (~5min 周期 1 个月), 贴近讲解 "几天到一
+    两个月" 的持仓口径
+    其余沿用 v6: Signal 1 理想型 + Signal 2 洗盘型 + 突破前期高点
 
-  可视化: 信号位置画一条粗短线指向对应 K 线, 标签放在线条另一端
+  v6 -> v7 折中说明:
+    W 底 / 抬高底通常发生在斜率刚转向那一刻 (UPT 刚成立), 严格 UPT 模
+    式可能漏掉趋势刚起步的第一个信号; 若要更早抓拐点, 把 SLP_E 调小
+    (例如 0.00005) 让斜率更快被判定为 UPT.
+
   建议周期: 5 分钟 K 线
 }
 
@@ -49,14 +54,14 @@ NH_BROKE := NH AND REF(HIGH, K) >  REF(MA250, K);
 PRE_HIGH := REF(HHV(HIGH, 20), K + 1);
 PRE_LOW  := REF(LLV(LOW,  20), K + 1);
 
-{ ===== 入场信号 (严格遵照讲解) ===== }
+{ ===== 入场信号 (v7: 严格只在趋势方向, 震荡观望) ===== }
 { Signal 1 理想型 + Signal 2 洗盘型 - 都要求 "突破前期高/低" }
-LONG_S1 := NL_HELD  AND C > PRE_HIGH AND C > MA250 AND (UPT OR RNG);
-LONG_S2 := NL_BROKE AND C > PRE_HIGH AND C > MA250 AND (UPT OR RNG);
+LONG_S1 := NL_HELD  AND C > PRE_HIGH AND C > MA250 AND UPT;
+LONG_S2 := NL_BROKE AND C > PRE_HIGH AND C > MA250 AND UPT;
 BUY_BASE := LONG_S1 OR LONG_S2;
 
-SHORT_S1 := NH_HELD  AND C < PRE_LOW AND C < MA250 AND (DNT OR RNG);
-SHORT_S2 := NH_BROKE AND C < PRE_LOW AND C < MA250 AND (DNT OR RNG);
+SHORT_S1 := NH_HELD  AND C < PRE_LOW AND C < MA250 AND DNT;
+SHORT_S2 := NH_BROKE AND C < PRE_LOW AND C < MA250 AND DNT;
 SELL_BASE := SHORT_S1 OR SHORT_S2;
 
 { ===== 出场基本事件 (5_04 三档移动平仓) ===== }
@@ -65,8 +70,8 @@ X_LONG_FULL  := CROSS(MA250, C);   { 跌破 MA250 -> 全平 }
 X_SHORT_WARN := CROSS(C, MA120);
 X_SHORT_FULL := CROSS(C, MA250);
 
-{ ===== 仓位状态代理 (反向信号 + 最长 200 根自动出局) ===== }
-MAX_HOLD := 200;
+{ ===== 仓位状态代理 (v7: MAX_HOLD 提到 1500 根 ~ 5min 周期 1 个月) ===== }
+MAX_HOLD := 1500;
 LAST_BUY  := BARSLAST(BUY_BASE);
 LAST_END_LONG  := MIN(BARSLAST(X_LONG_FULL),  BARSLAST(SELL_BASE));
 IN_LONG  := LAST_BUY  < LAST_END_LONG  AND LAST_BUY  <= MAX_HOLD;
