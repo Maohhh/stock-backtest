@@ -24,11 +24,12 @@ MA120:  MA(C, 120), COLORYELLOW, LINETHICK1;
 MA250:  MA(C, 250), COLORMAGENTA,LINETHICK2;
 
 { ===== MA250 斜率与趋势状态 ===== }
-SLOPE_N := 10;
-SLOPE   := (MA250 - REF(MA250, SLOPE_N)) / C;
-SLOPE_E := 0.0001;
-UPT  := SLOPE > SLOPE_E;
-DNT  := SLOPE < -SLOPE_E;
+{ 注: 不能用 SLOPE 作变量名 (通达信已有同名内建函数) }
+SLP_N := 10;
+SLP   := (MA250 - REF(MA250, SLP_N)) / C;
+SLP_E := 0.0001;
+UPT  := SLP > SLP_E;
+DNT  := SLP < -SLP_E;
 RNG  := NOT(UPT) AND NOT(DNT);
 
 { ===== Pivot 检测 (左右各 K 根的极值; K 根后确认) ===== }
@@ -53,8 +54,9 @@ SHORT_S2 := NH AND LAST_NH < PREV_NH AND C < MA250 AND (DNT OR RNG);
 LONG_S1  := NL AND LAST_NL >= PREV_NL AND C > HHV(HIGH, 7) AND (UPT OR RNG);
 SHORT_S1 := NH AND LAST_NH <= PREV_NH AND C < LLV(LOW, 7)  AND (DNT OR RNG);
 
-OPEN_LONG  := LONG_S1 OR LONG_S2;
-OPEN_SHORT := SHORT_S1 OR SHORT_S2;
+{ 不用 OPEN 前缀, 避免与开盘价关键字混淆 }
+BUY_SIG  := LONG_S1 OR LONG_S2;
+SELL_SIG := SHORT_S1 OR SHORT_S2;
 
 { ===== 出场信号 ===== }
 EXIT_LONG_WARN  := CROSS(MA120, C);
@@ -64,13 +66,13 @@ EXIT_SHORT_FULL := CROSS(C, MA250);
 
 { ===== 价差极端 ===== }
 EXT_N := 1200;
-SPREAD := C - MA250;
-EXT_L  := ABS(SPREAD) = HHV(ABS(SPREAD), EXT_N) AND SPREAD > 0;
-EXT_S  := ABS(SPREAD) = HHV(ABS(SPREAD), EXT_N) AND SPREAD < 0;
+SPD := C - MA250;
+EXT_L  := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD > 0;
+EXT_S  := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD < 0;
 
 { ===== 主图标记 ===== }
-DRAWICON(OPEN_LONG,        LOW * 0.998,  1);
-DRAWICON(OPEN_SHORT,       HIGH * 1.002, 2);
+DRAWICON(BUY_SIG,          LOW * 0.998,  1);
+DRAWICON(SELL_SIG,         HIGH * 1.002, 2);
 DRAWICON(EXIT_LONG_FULL,   HIGH * 1.002, 3);
 DRAWICON(EXIT_SHORT_FULL,  LOW * 0.998,  3);
 DRAWICON(EXIT_LONG_WARN,   HIGH * 1.002, 8);
@@ -103,8 +105,8 @@ STICKLINE(DNT, HIGH, HIGH * 1.002, 1.5, 0), COLORGREEN;
 
 | 参数 | 默认 | 含义 |
 | --- | --- | --- |
-| `SLOPE_N` | 10 | MA250 斜率回归窗口 |
-| `SLOPE_E` | 0.0001 | 斜率阈值，越大越严格 |
+| `SLP_N` | 10 | MA250 斜率回归窗口 |
+| `SLP_E` | 0.0001 | 斜率阈值，越大越严格 |
 | `K` | 3 | swing 半宽（波动大的品种调到 5） |
 | `NEAR_PCT` | 0.3 | 视为靠近 MA250 的百分比距离 |
 | `EXT_N` | 1200 | 价差极端窗口（5min ≈ 1 周；12000 ≈ 1 年） |

@@ -9,16 +9,17 @@
 }
 
 { ===== 同主图的核心计算 ===== }
-SLOPE_N := 10;
+SLP_N := 10;
 K := 3;
 NEAR_PCT := 0.3;
 
 MA250 := MA(C, 250);
 MA120 := MA(C, 120);
 
-SLOPE := (MA250 - REF(MA250, SLOPE_N)) / C;
-UPT   := SLOPE > 0.0001;
-RNG   := NOT(UPT) AND NOT(SLOPE < -0.0001);
+{ 不能用 SLOPE 作变量名 (通达信内建函数) }
+SLP := (MA250 - REF(MA250, SLP_N)) / C;
+UPT := SLP > 0.0001;
+RNG := NOT(UPT) AND NOT(SLP < -0.0001);
 
 PL := REF(LOW, K) = LLV(LOW, 2*K+1);
 NL := PL AND ABS(REF(LOW, K) - REF(MA250, K)) / REF(MA250, K) * 100 <= NEAR_PCT;

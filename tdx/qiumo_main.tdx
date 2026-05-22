@@ -27,11 +27,12 @@ MA120:  MA(C, 120), COLORYELLOW, LINETHICK1;
 MA250:  MA(C, 250), COLORMAGENTA,LINETHICK2;
 
 { ===== MA250 斜率与趋势状态 ===== }
-SLOPE_N := 10;                              { 斜率回归窗口 }
-SLOPE   := (MA250 - REF(MA250, SLOPE_N)) / C;
-SLOPE_E := 0.0001;                          { 斜率阈值; 越大越严格 }
-UPT  := SLOPE > SLOPE_E;                    { 多头势 }
-DNT  := SLOPE < -SLOPE_E;                   { 空头势 }
+{ 注: 不能用 SLOPE 作变量名 (通达信已有同名内建函数) }
+SLP_N := 10;                                { 斜率回归窗口 }
+SLP   := (MA250 - REF(MA250, SLP_N)) / C;
+SLP_E := 0.0001;                            { 斜率阈值; 越大越严格 }
+UPT  := SLP > SLP_E;                        { 多头势 }
+DNT  := SLP < -SLP_E;                       { 空头势 }
 RNG  := NOT(UPT) AND NOT(DNT);              { 震荡势 }
 
 { ===== Pivot 检测 (左右各 K 根的极值; K 根后确认) ===== }
@@ -60,8 +61,9 @@ SHORT_S2 := NH AND LAST_NH < PREV_NH AND C < MA250 AND (DNT OR RNG);
 LONG_S1  := NL AND LAST_NL >= PREV_NL AND C > HHV(HIGH, 7) AND (UPT OR RNG);
 SHORT_S1 := NH AND LAST_NH <= PREV_NH AND C < LLV(LOW, 7)  AND (DNT OR RNG);
 
-OPEN_LONG  := LONG_S1 OR LONG_S2;
-OPEN_SHORT := SHORT_S1 OR SHORT_S2;
+{ 不用 OPEN 前缀, 避免与开盘价关键字混淆 }
+BUY_SIG  := LONG_S1 OR LONG_S2;
+SELL_SIG := SHORT_S1 OR SHORT_S2;
 
 { ===== 出场信号 ===== }
 EXIT_LONG_WARN  := CROSS(MA120, C);          { 收盘跌破 MA120 -> 减仓警告 }
@@ -71,13 +73,13 @@ EXIT_SHORT_FULL := CROSS(C, MA250);
 
 { ===== 价差极端 (持仓时 = 全部止盈; 近似 HHV 取代百分位) ===== }
 EXT_N := 1200;
-SPREAD := C - MA250;
-EXT_L  := ABS(SPREAD) = HHV(ABS(SPREAD), EXT_N) AND SPREAD > 0;
-EXT_S  := ABS(SPREAD) = HHV(ABS(SPREAD), EXT_N) AND SPREAD < 0;
+SPD := C - MA250;
+EXT_L  := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD > 0;
+EXT_S  := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD < 0;
 
 { ===== 主图标记 ===== }
-DRAWICON(OPEN_LONG,        LOW * 0.998,  1);    { 多头入场 上箭头 }
-DRAWICON(OPEN_SHORT,       HIGH * 1.002, 2);    { 空头入场 下箭头 }
+DRAWICON(BUY_SIG,          LOW * 0.998,  1);    { 多头入场 上箭头 }
+DRAWICON(SELL_SIG,         HIGH * 1.002, 2);    { 空头入场 下箭头 }
 DRAWICON(EXIT_LONG_FULL,   HIGH * 1.002, 3);    { 全平多 叉 }
 DRAWICON(EXIT_SHORT_FULL,  LOW * 0.998,  3);    { 全平空 叉 }
 DRAWICON(EXIT_LONG_WARN,   HIGH * 1.002, 8);    { 减仓警告 小圆点 }
