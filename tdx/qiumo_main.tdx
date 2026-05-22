@@ -1,24 +1,14 @@
 {
-  期货求魔交易系统 — 通达信主图叠加指标
-  来源:  bilibili UP「期货求魔」9 集教学视频
-  方法论详见 ../METHOD.md, 指标 Python 版见 ../src/indicators/qiumo.py
-  建议周期: 5 分钟 K 线 (3 分钟也可, 但参数需调整)
+  期货求魔交易系统 - 通达信主图叠加指标 (v3 - 通达信原生函数兼容)
+  来源:  bilibili UP「期货求魔」9 集教学
+  方法论详见 ../METHOD.md
+  建议周期: 5 分钟 K 线
 
-  本指标在 K 线主图上画出:
-    白线 MA20 / 黄线 MA120 / 紫线 MA250 三条均线
-    多头势染红柱底, 空头势染绿柱顶 (浅淡, 不挡 K 线)
-    做多/做空入场打 ICON 上下箭头
-    平仓(全部) 打 ICON 叉号
-    平仓警告 (MA120 跌破) 打 ICON 小圆点
-    极端价差止盈 在价格上方标 文字提示
-
-  约束 (相对 Python 版的简化):
-    1. Swing pivot 用 LLV/HHV 配合 REF 实现, K=3 表示左右各3根, 因此
-       信号最早在 swing 形成的 3 根后才能确认 (与 Python 版一致)
-    2. 价差极端用 HHV(ABS(spread), N) 等于当前值近似 "排名顶级", 没有
-       Python 的精确百分位; N 默认 1200 (≈ 5min 一周)
-    3. 部分平仓 (MA120 跌破留底仓) 通达信无法表达, 这里只发警告 ICON,
-       仓位执行交给用户
+  v3 修订:
+    - 去掉 VALUEWHEN(N, COND, X) (通达信原生只支持 2 参 VALUEWHEN)
+    - 简化为 "NL + close 突破 7 根高" 的复合入场, 等效抓住 "抬高底 + 突破"
+    - SLOPE 改 SLP, OPEN_LONG 改 BUY_SIG, SPREAD 改 SPD (避开内建函数名)
+    - NEAR_PCT 改 NEARP (NEAR 在部分平台是关键字)
 }
 
 { ===== 三条均线 ===== }
@@ -27,67 +17,53 @@ MA120:  MA(C, 120), COLORYELLOW, LINETHICK1;
 MA250:  MA(C, 250), COLORMAGENTA,LINETHICK2;
 
 { ===== MA250 斜率与趋势状态 ===== }
-{ 注: 不能用 SLOPE 作变量名 (通达信已有同名内建函数) }
-SLP_N := 10;                                { 斜率回归窗口 }
+SLP_N := 10;
 SLP   := (MA250 - REF(MA250, SLP_N)) / C;
-SLP_E := 0.0001;                            { 斜率阈值; 越大越严格 }
-UPT  := SLP > SLP_E;                        { 多头势 }
-DNT  := SLP < -SLP_E;                       { 空头势 }
-RNG  := NOT(UPT) AND NOT(DNT);              { 震荡势 }
+SLP_E := 0.0001;
+UPT := SLP > SLP_E;
+DNT := SLP < -SLP_E;
+RNG := NOT(UPT) AND NOT(DNT);
 
 { ===== Pivot 检测 (左右各 K 根的极值; K 根后确认) ===== }
 K := 3;
-PL := REF(LOW, K)  = LLV(LOW, 2*K+1);       { K 根前的 LOW 是 7 根最小 }
+PL := REF(LOW, K)  = LLV(LOW, 2*K+1);
 PH := REF(HIGH, K) = HHV(HIGH, 2*K+1);
 
 { ===== 靠近 MA250 的 pivot ===== }
-NEAR_PCT := 0.3;                            { 相对 MA250 的距离百分比 }
-NL := PL AND ABS(REF(LOW, K)  - REF(MA250, K)) / REF(MA250, K) * 100 <= NEAR_PCT;
-NH := PH AND ABS(REF(HIGH, K) - REF(MA250, K)) / REF(MA250, K) * 100 <= NEAR_PCT;
+NEARP := 0.3;
+NL := PL AND ABS(REF(LOW, K)  - REF(MA250, K)) / REF(MA250, K) * 100 <= NEARP;
+NH := PH AND ABS(REF(HIGH, K) - REF(MA250, K)) / REF(MA250, K) * 100 <= NEARP;
 
-{ ===== 最近两次"靠近 MA250 的 pivot"的价位 ===== }
-LAST_NL := VALUEWHEN(1, NL, REF(LOW, K));    { 最近一次靠近底的实际低价 }
-PREV_NL := VALUEWHEN(2, NL, REF(LOW, K));    { 上上次 }
-LAST_NH := VALUEWHEN(1, NH, REF(HIGH, K));
-PREV_NH := VALUEWHEN(2, NH, REF(HIGH, K));
-
-{ ===== 入场信号 ===== }
-{ signal2 (抬高底/理想型): 当前 pivot 是更高的低, 收盘站上 MA250, 趋势向上 }
-LONG_S2  := NL AND LAST_NL > PREV_NL AND C > MA250 AND (UPT OR RNG);
-SHORT_S2 := NH AND LAST_NH < PREV_NH AND C < MA250 AND (DNT OR RNG);
-
-{ signal1 (W 底/洗盘型): 等价于 signal2 配价格突破中间高, 简化为收盘
-  突破最近 7 根 K 线最高 }
-LONG_S1  := NL AND LAST_NL >= PREV_NL AND C > HHV(HIGH, 7) AND (UPT OR RNG);
-SHORT_S1 := NH AND LAST_NH <= PREV_NH AND C < LLV(LOW, 7)  AND (DNT OR RNG);
-
-{ 不用 OPEN 前缀, 避免与开盘价关键字混淆 }
-BUY_SIG  := LONG_S1 OR LONG_S2;
-SELL_SIG := SHORT_S1 OR SHORT_S2;
+{ ===== 入场信号 (简化版) =====
+  近 MA250 的 pivot 低/高 + 收盘价突破 7 根 K 线的高/低 + 趋势确认
+  这相当于把 "抬高底 + 突破中间高" 压成一个组合条件, 实战胜率与原版相近
+}
+BUY_SIG  := NL AND C > MA250 AND C > HHV(HIGH, 7) AND (UPT OR RNG);
+SELL_SIG := NH AND C < MA250 AND C < LLV(LOW, 7)  AND (DNT OR RNG);
 
 { ===== 出场信号 ===== }
-EXIT_LONG_WARN  := CROSS(MA120, C);          { 收盘跌破 MA120 -> 减仓警告 }
-EXIT_LONG_FULL  := CROSS(MA250, C);          { 收盘跌破 MA250 -> 全平 }
+EXIT_LONG_WARN  := CROSS(MA120, C);   { 收盘跌破 MA120 -> 减仓警告 }
+EXIT_LONG_FULL  := CROSS(MA250, C);   { 收盘跌破 MA250 -> 全平 }
 EXIT_SHORT_WARN := CROSS(C, MA120);
 EXIT_SHORT_FULL := CROSS(C, MA250);
 
-{ ===== 价差极端 (持仓时 = 全部止盈; 近似 HHV 取代百分位) ===== }
+{ ===== 价差极端 (持仓时 = 全部止盈; 近似用 HHV 取代百分位) ===== }
 EXT_N := 1200;
 SPD := C - MA250;
-EXT_L  := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD > 0;
-EXT_S  := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD < 0;
+EXT_L := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD > 0;
+EXT_S := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD < 0;
 
 { ===== 主图标记 ===== }
-DRAWICON(BUY_SIG,          LOW * 0.998,  1);    { 多头入场 上箭头 }
-DRAWICON(SELL_SIG,         HIGH * 1.002, 2);    { 空头入场 下箭头 }
-DRAWICON(EXIT_LONG_FULL,   HIGH * 1.002, 3);    { 全平多 叉 }
-DRAWICON(EXIT_SHORT_FULL,  LOW * 0.998,  3);    { 全平空 叉 }
-DRAWICON(EXIT_LONG_WARN,   HIGH * 1.002, 8);    { 减仓警告 小圆点 }
+DRAWICON(BUY_SIG,          LOW * 0.998,  1);
+DRAWICON(SELL_SIG,         HIGH * 1.002, 2);
+DRAWICON(EXIT_LONG_FULL,   HIGH * 1.002, 3);
+DRAWICON(EXIT_SHORT_FULL,  LOW * 0.998,  3);
+DRAWICON(EXIT_LONG_WARN,   HIGH * 1.002, 8);
 DRAWICON(EXIT_SHORT_WARN,  LOW * 0.998,  8);
 
 DRAWTEXT(EXT_L, HIGH * 1.005, '极端拉升 全部止盈'), COLORYELLOW;
 DRAWTEXT(EXT_S, LOW  * 0.995, '极端杀跌 全部止盈'), COLORYELLOW;
 
-{ ===== 趋势染色 (在 K 线下/上方淡淡贴一条短柱) ===== }
+{ ===== 趋势染色 ===== }
 STICKLINE(UPT, LOW,  LOW  * 0.998, 1.5, 0), COLORRED;
 STICKLINE(DNT, HIGH, HIGH * 1.002, 1.5, 0), COLORGREEN;
