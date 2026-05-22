@@ -57,7 +57,7 @@ def qiumo(
     slope_eps: Optional[float] = None,
     pivot_k: int = 3,
     near_tol: float = 0.003,
-    extreme_window: int = 240,
+    extreme_window: int = 1200,
     extreme_pct: float = 0.95,
 ) -> pd.DataFrame:
     """Compute the 期货求魔 feature set on an OHLCV DataFrame.
@@ -84,10 +84,13 @@ def qiumo(
         low is "near MA250" iff ``|low - MA250| / MA250 ≤ near_tol``.
         Default 0.3% suits futures 5-min bars; widen for noisier products.
     extreme_window, extreme_pct : int, float
-        Spread-extreme detector. ``extreme_window`` 5-min bars ≈ how many
-        trading days you treat as "recent" (240 bars ≈ 4 trading days at
-        5-min). When ``|close - MA250|`` ranks ≥ ``extreme_pct`` percentile
-        over that window, the system flags it as overextended.
+        Spread-extreme detector. ``extreme_window`` 5-min bars ≈ the
+        lookback the lecture suggests for "is this deviation extreme":
+        1 week ≈ 1200, half month ≈ 2400, 1 month ≈ 4800, 1 year ≈ 12000.
+        When ``|close - MA250|`` ranks ≥ ``extreme_pct`` percentile over
+        that window, the system flags it as overextended (a take-profit
+        trigger for an open position OR a mean-reversion entry candidate
+        for a flat position — see ``QiuMoSwingStrategy``).
 
     Returns
     -------
