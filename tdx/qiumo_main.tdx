@@ -1,19 +1,16 @@
 {
-  期货求魔交易系统 - 通达信主图叠加指标 (v8 - 加冷却去重)
+  期货求魔交易系统 - 通达信主图叠加指标 (v9 - 修复平仓不显示)
   来源:  bilibili UP「期货求魔」9 集教学
   方法论详见 ../METHOD.md
 
-  v8 改进: 加冷却去重
-    同一波 setup 内, BUY_BASE / SELL_BASE / WARN 可能在相邻或相近几根 K
-    线连续点火 (例如同一波回踩做出两个 NL pivot, 或 MA120 反复被穿越).
-    v8 引入 COOL 冷却参数, 每类信号在 COOL 根 K 线内只显示第一次, 之后
-    必须等冷却过完才能再次触发. 仓位代理 IN_LONG/IN_SHORT 也基于冷却后
-    的信号计算, 更接近真实仓位行为.
-
-  v7 -> v8 折中:
-    COOL 默认 30 (~5min 周期 2.5 小时), 短到可以接连抓相邻 setup,
-    长到能去掉同一 setup 内的连发. 若你的品种波动周期更长,
-    把 COOL 调到 60 或 100.
+  v9 修复因果时序 bug:
+    EXIT_*_FULL = X_*_FULL AND IN_*  逻辑有自相消除问题:
+    X_LONG_FULL 一旦在当前 K 线触发, BARSLAST(X_LONG_FULL) = 0, 导致
+    LAST_END_LONG = 0, IN_LONG 立刻翻 FALSE, 于是 EXIT_LONG_FULL =
+    TRUE AND FALSE = FALSE -- 平仓字样永远画不出来.
+    修复: 出场判定改用前一根 K 线的状态 REF(IN_*, 1), 当前事件不参与
+    自身的 gating.
+    同时把 COOL 从 30 降到 10 (~ 50 min), 减少误伤但仍能去掉相邻冗余.
 
   建议周期: 5 分钟 K 线
 }
@@ -65,7 +62,7 @@ SHORT_S2 := NH_BROKE AND C < PRE_LOW AND C < MA250 AND DNT;
 SELL_RAW := SHORT_S1 OR SHORT_S2;
 
 { ===== v8: 冷却去重 (同一 setup 内只显示第一次) ===== }
-COOL := 30;
+COOL := 10;
 BUY_BASE  := BUY_RAW  AND COUNT(BUY_RAW,  COOL) = 1;
 SELL_BASE := SELL_RAW AND COUNT(SELL_RAW, COOL) = 1;
 
@@ -85,10 +82,14 @@ LAST_SELL := BARSLAST(SELL_BASE);
 LAST_END_SHORT := MIN(BARSLAST(X_SHORT_FULL), BARSLAST(BUY_BASE));
 IN_SHORT := LAST_SELL < LAST_END_SHORT AND LAST_SELL <= MAX_HOLD;
 
-EXIT_LONG_WARN_RAW  := X_LONG_WARN  AND IN_LONG;
-EXIT_LONG_FULL      := X_LONG_FULL  AND IN_LONG;
-EXIT_SHORT_WARN_RAW := X_SHORT_WARN AND IN_SHORT;
-EXIT_SHORT_FULL     := X_SHORT_FULL AND IN_SHORT;
+{ ===== v9: 用 "前一根 K 线" 的仓位状态做 gating, 避免当前事件自相消除 ===== }
+WAS_IN_LONG  := REF(IN_LONG, 1);
+WAS_IN_SHORT := REF(IN_SHORT, 1);
+
+EXIT_LONG_WARN_RAW  := X_LONG_WARN  AND WAS_IN_LONG;
+EXIT_LONG_FULL      := X_LONG_FULL  AND WAS_IN_LONG;
+EXIT_SHORT_WARN_RAW := X_SHORT_WARN AND WAS_IN_SHORT;
+EXIT_SHORT_FULL     := X_SHORT_FULL AND WAS_IN_SHORT;
 
 { v8: 减仓警告也加冷却 (MA120 反复穿越) }
 EXIT_LONG_WARN  := EXIT_LONG_WARN_RAW  AND COUNT(EXIT_LONG_WARN_RAW,  COOL) = 1;
@@ -97,8 +98,8 @@ EXIT_SHORT_WARN := EXIT_SHORT_WARN_RAW AND COUNT(EXIT_SHORT_WARN_RAW, COOL) = 1;
 { ===== 价差极端 (1 年最大价差近似 -> 全部止盈) ===== }
 EXT_N := 1200;
 SPD := C - MA250;
-EXT_L_RAW := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD > 0 AND IN_LONG;
-EXT_S_RAW := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD < 0 AND IN_SHORT;
+EXT_L_RAW := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD > 0 AND WAS_IN_LONG;
+EXT_S_RAW := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD < 0 AND WAS_IN_SHORT;
 
 { v8: 极端价差也加冷却 (新高连续多根时去重) }
 EXT_L := EXT_L_RAW AND COUNT(EXT_L_RAW, COOL) = 1;

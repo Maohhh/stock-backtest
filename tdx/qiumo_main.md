@@ -2,6 +2,21 @@
 
 来源：bilibili UP「期货求魔」9 集教学。完整方法论见 [`METHOD.md`](../METHOD.md)，Python 实现见 [`src/indicators/qiumo.py`](../src/indicators/qiumo.py)。
 
+## v9 修复"平仓不显示" — 因果时序 bug
+
+之前几版 EXIT 用 `IN_LONG` / `IN_SHORT` 作为 gating，但这两个状态是用**当前 K 线的 BARSLAST** 算的——一旦 `X_LONG_FULL`（MA250 跌破事件）在当前 K 线触发，`BARSLAST(X_LONG_FULL) = 0` 立刻让 `IN_LONG` 翻 FALSE，于是 `EXIT_LONG_FULL = X_LONG_FULL AND IN_LONG = TRUE AND FALSE = FALSE` —— **平仓字样永远画不出来**。
+
+WARN/买/卖能看到只是因为它们的触发事件不会自相消除。
+
+修法：出场判定改用**前一根 K 线**的状态：
+
+```
+WAS_IN_LONG := REF(IN_LONG, 1);   { 前一根的 IN_LONG, 不被当前事件污染 }
+EXIT_LONG_FULL := X_LONG_FULL AND WAS_IN_LONG;
+```
+
+同时 `COOL` 从 30 降到 10（~5min 周期 50 分钟），减少误伤但仍能去掉相邻冗余。
+
 ## v8 加冷却去重 — 入场逻辑
 
 v8 在 v7 基础上加**冷却（cooldown）去重**：同一波 setup 内（连续 NL pivot 或 MA120 反复穿越），每类信号在 `COOL`（默认 30 根，~ 2.5 小时）内只显示第一次。这解决了"相邻或相近 K 线重复出现同一信号"的问题。
@@ -50,7 +65,7 @@ v8 修法：
 
 ```
 {
-  期货求魔交易系统 - 通达信主图叠加指标 (v8)
+  期货求魔交易系统 - 通达信主图叠加指标 (v9)
   建议周期: 5 分钟 K 线
 }
 
@@ -95,7 +110,7 @@ SHORT_S2 := NH_BROKE AND C < PRE_LOW AND C < MA250 AND DNT;
 SELL_RAW := SHORT_S1 OR SHORT_S2;
 
 { v8: 冷却去重 (同一 setup 内只显示第一次) }
-COOL := 30;
+COOL := 10;
 BUY_BASE  := BUY_RAW  AND COUNT(BUY_RAW,  COOL) = 1;
 SELL_BASE := SELL_RAW AND COUNT(SELL_RAW, COOL) = 1;
 
@@ -115,10 +130,14 @@ LAST_SELL := BARSLAST(SELL_BASE);
 LAST_END_SHORT := MIN(BARSLAST(X_SHORT_FULL), BARSLAST(BUY_BASE));
 IN_SHORT := LAST_SELL < LAST_END_SHORT AND LAST_SELL <= MAX_HOLD;
 
-EXIT_LONG_WARN_RAW  := X_LONG_WARN  AND IN_LONG;
-EXIT_LONG_FULL      := X_LONG_FULL  AND IN_LONG;
-EXIT_SHORT_WARN_RAW := X_SHORT_WARN AND IN_SHORT;
-EXIT_SHORT_FULL     := X_SHORT_FULL AND IN_SHORT;
+{ v9: 用前一根状态 gating, 避免当前事件自相消除 }
+WAS_IN_LONG  := REF(IN_LONG, 1);
+WAS_IN_SHORT := REF(IN_SHORT, 1);
+
+EXIT_LONG_WARN_RAW  := X_LONG_WARN  AND WAS_IN_LONG;
+EXIT_LONG_FULL      := X_LONG_FULL  AND WAS_IN_LONG;
+EXIT_SHORT_WARN_RAW := X_SHORT_WARN AND WAS_IN_SHORT;
+EXIT_SHORT_FULL     := X_SHORT_FULL AND WAS_IN_SHORT;
 
 { v8: 减仓警告也加冷却 (MA120 反复穿越) }
 EXIT_LONG_WARN  := EXIT_LONG_WARN_RAW  AND COUNT(EXIT_LONG_WARN_RAW,  COOL) = 1;
@@ -127,8 +146,8 @@ EXIT_SHORT_WARN := EXIT_SHORT_WARN_RAW AND COUNT(EXIT_SHORT_WARN_RAW, COOL) = 1;
 { ===== 价差极端 ===== }
 EXT_N := 1200;
 SPD := C - MA250;
-EXT_L_RAW := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD > 0 AND IN_LONG;
-EXT_S_RAW := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD < 0 AND IN_SHORT;
+EXT_L_RAW := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD > 0 AND WAS_IN_LONG;
+EXT_S_RAW := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD < 0 AND WAS_IN_SHORT;
 
 { v8: 极端价差也加冷却 }
 EXT_L := EXT_L_RAW AND COUNT(EXT_L_RAW, COOL) = 1;
@@ -202,7 +221,7 @@ STICKLINE(DNT AND NOT(SELL_BASE), HIGH, HIGH * 1.001, 0.5, 0), COLORGREEN;
 | `K` | 3 | swing 半宽 |
 | `NEARP` | 0.3 | 视为靠近 MA250 的百分比距离 |
 | `MAX_HOLD` | 1500 | 仓位状态最长保持根数（1500×5min ≈ 1 个月）|
-| `COOL` | 30 | 信号冷却根数（30×5min ≈ 2.5 小时）|
+| `COOL` | 10 | 信号冷却根数（10×5min ≈ 50 分钟）|
 | `EXT_N` | 1200 | 价差极端窗口 |
 
 ## 与 Python 版的差异
@@ -224,3 +243,4 @@ STICKLINE(DNT AND NOT(SELL_BASE), HIGH, HIGH * 1.001, 0.5, 0), COLORGREEN;
 | v5→v6 | 偏离讲解原文 → 回归严格 Signal 1（理想型，回踩守住）+ Signal 2（洗盘型，回踩假突破）+ 共同要求"突破前期高"；DRAWTEXT 改 STICKLINE + DRAWTEXT，线条指向具体 K 线 |
 | v6→v7 | 入场允许 `UPT OR RNG` 偏离"严格趋势跟随"本质 → 改为只在 `UPT`/`DNT` 入场，震荡观望；`MAX_HOLD` 从 200 提到 1500 根（~1 个月），贴近讲解持仓周期口径 |
 | v7→v8 | 同一波 setup 内 BUY_BASE / WARN 在相邻 K 线重复点火 → 加 `COOL` 冷却（默认 30 根），每类信号在冷却窗口内只显示第一次 |
+| v8→v9 | 平仓字样永远不显示（`X_LONG_FULL` 自身让 `IN_LONG` 翻 FALSE，自相消除）→ 出场 gating 改用 `REF(IN_LONG, 1)`；`COOL` 从 30 降到 10 减少误伤 |
