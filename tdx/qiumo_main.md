@@ -2,14 +2,20 @@
 
 来源：bilibili UP「期货求魔」9 集教学。完整方法论见 [`METHOD.md`](../METHOD.md)，Python 实现见 [`src/indicators/qiumo.py`](../src/indicators/qiumo.py)。
 
-## v7 严格趋势跟随版 — 入场逻辑
+## v8 加冷却去重 — 入场逻辑
 
-v7 在 v6 基础上做两处严格化：
+v8 在 v7 基础上加**冷却（cooldown）去重**：同一波 setup 内（连续 NL pivot 或 MA120 反复穿越），每类信号在 `COOL`（默认 30 根，~ 2.5 小时）内只显示第一次。这解决了"相邻或相近 K 线重复出现同一信号"的问题。
 
-- **入场要求严格趋势方向**：做多只在 `UPT`（MA250 上斜），做空只在 `DNT`（MA250 下斜），震荡时观望——符合"均线回踩型趋势跟随"的本质。
-- **`MAX_HOLD` 从 200 提到 1500**（≈ 5min 周期一个月），贴近讲解"几天到一两个月"的持仓口径。
+v7 之前的版本：
+- `IN_LONG` 只过滤"不在仓位时不显示出场"
+- **没过滤"已在仓位时不重复显示入场"**——所以 BUY_BASE 在同一波 setup 内会反复点火
 
-### 入场触发逻辑（与 v6 一致，方向更严格）
+v8 修法：
+- `BUY_BASE := BUY_RAW AND COUNT(BUY_RAW, COOL) = 1`
+- `SELL_BASE := SELL_RAW AND COUNT(SELL_RAW, COOL) = 1`
+- `EXIT_LONG_WARN` / `EXIT_SHORT_WARN` 同样加 COOL（MA120 反复穿越的去重）
+- `EXT_L` / `EXT_S` 同样加 COOL（极端价差新高连续时去重）
+- `EXIT_*_FULL` 不需要冷却——MA250 一旦被穿，`IN_LONG` 立刻翻 FALSE，天然只触发一次
 
 5_03 原文里清晰区分了两类入场：
 
@@ -44,7 +50,7 @@ v7 在 v6 基础上做两处严格化：
 
 ```
 {
-  期货求魔交易系统 - 通达信主图叠加指标 (v7)
+  期货求魔交易系统 - 通达信主图叠加指标 (v8)
   建议周期: 5 分钟 K 线
 }
 
@@ -82,11 +88,16 @@ PRE_LOW  := REF(LLV(LOW,  20), K + 1);
 { ===== 入场信号 (严格按 5_03 讲解) ===== }
 LONG_S1 := NL_HELD  AND C > PRE_HIGH AND C > MA250 AND UPT;
 LONG_S2 := NL_BROKE AND C > PRE_HIGH AND C > MA250 AND UPT;
-BUY_BASE := LONG_S1 OR LONG_S2;
+BUY_RAW := LONG_S1 OR LONG_S2;
 
 SHORT_S1 := NH_HELD  AND C < PRE_LOW AND C < MA250 AND DNT;
 SHORT_S2 := NH_BROKE AND C < PRE_LOW AND C < MA250 AND DNT;
-SELL_BASE := SHORT_S1 OR SHORT_S2;
+SELL_RAW := SHORT_S1 OR SHORT_S2;
+
+{ v8: 冷却去重 (同一 setup 内只显示第一次) }
+COOL := 30;
+BUY_BASE  := BUY_RAW  AND COUNT(BUY_RAW,  COOL) = 1;
+SELL_BASE := SELL_RAW AND COUNT(SELL_RAW, COOL) = 1;
 
 { ===== 出场 ===== }
 X_LONG_WARN  := CROSS(MA120, C);
@@ -104,16 +115,24 @@ LAST_SELL := BARSLAST(SELL_BASE);
 LAST_END_SHORT := MIN(BARSLAST(X_SHORT_FULL), BARSLAST(BUY_BASE));
 IN_SHORT := LAST_SELL < LAST_END_SHORT AND LAST_SELL <= MAX_HOLD;
 
-EXIT_LONG_WARN  := X_LONG_WARN  AND IN_LONG;
-EXIT_LONG_FULL  := X_LONG_FULL  AND IN_LONG;
-EXIT_SHORT_WARN := X_SHORT_WARN AND IN_SHORT;
-EXIT_SHORT_FULL := X_SHORT_FULL AND IN_SHORT;
+EXIT_LONG_WARN_RAW  := X_LONG_WARN  AND IN_LONG;
+EXIT_LONG_FULL      := X_LONG_FULL  AND IN_LONG;
+EXIT_SHORT_WARN_RAW := X_SHORT_WARN AND IN_SHORT;
+EXIT_SHORT_FULL     := X_SHORT_FULL AND IN_SHORT;
+
+{ v8: 减仓警告也加冷却 (MA120 反复穿越) }
+EXIT_LONG_WARN  := EXIT_LONG_WARN_RAW  AND COUNT(EXIT_LONG_WARN_RAW,  COOL) = 1;
+EXIT_SHORT_WARN := EXIT_SHORT_WARN_RAW AND COUNT(EXIT_SHORT_WARN_RAW, COOL) = 1;
 
 { ===== 价差极端 ===== }
 EXT_N := 1200;
 SPD := C - MA250;
-EXT_L := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD > 0 AND IN_LONG;
-EXT_S := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD < 0 AND IN_SHORT;
+EXT_L_RAW := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD > 0 AND IN_LONG;
+EXT_S_RAW := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD < 0 AND IN_SHORT;
+
+{ v8: 极端价差也加冷却 }
+EXT_L := EXT_L_RAW AND COUNT(EXT_L_RAW, COOL) = 1;
+EXT_S := EXT_S_RAW AND COUNT(EXT_S_RAW, COOL) = 1;
 
 { ===== 可视化: STICKLINE 指向 K 线 + DRAWTEXT 标签 ===== }
 STICKLINE(BUY_BASE, LOW * 0.997, LOW * 0.989, 2.0, 0), COLORYELLOW;
@@ -183,6 +202,7 @@ STICKLINE(DNT AND NOT(SELL_BASE), HIGH, HIGH * 1.001, 0.5, 0), COLORGREEN;
 | `K` | 3 | swing 半宽 |
 | `NEARP` | 0.3 | 视为靠近 MA250 的百分比距离 |
 | `MAX_HOLD` | 1500 | 仓位状态最长保持根数（1500×5min ≈ 1 个月）|
+| `COOL` | 30 | 信号冷却根数（30×5min ≈ 2.5 小时）|
 | `EXT_N` | 1200 | 价差极端窗口 |
 
 ## 与 Python 版的差异
@@ -203,3 +223,4 @@ STICKLINE(DNT AND NOT(SELL_BASE), HIGH, HIGH * 1.001, 0.5, 0), COLORGREEN;
 | v4→v5 | 入场太严 + 仓位状态永不出局 → 放宽默认入场、加 MAX_HOLD |
 | v5→v6 | 偏离讲解原文 → 回归严格 Signal 1（理想型，回踩守住）+ Signal 2（洗盘型，回踩假突破）+ 共同要求"突破前期高"；DRAWTEXT 改 STICKLINE + DRAWTEXT，线条指向具体 K 线 |
 | v6→v7 | 入场允许 `UPT OR RNG` 偏离"严格趋势跟随"本质 → 改为只在 `UPT`/`DNT` 入场，震荡观望；`MAX_HOLD` 从 200 提到 1500 根（~1 个月），贴近讲解持仓周期口径 |
+| v7→v8 | 同一波 setup 内 BUY_BASE / WARN 在相邻 K 线重复点火 → 加 `COOL` 冷却（默认 30 根），每类信号在冷却窗口内只显示第一次 |

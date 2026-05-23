@@ -1,19 +1,19 @@
 {
-  期货求魔交易系统 - 通达信主图叠加指标 (v7 - 严格趋势跟随版)
+  期货求魔交易系统 - 通达信主图叠加指标 (v8 - 加冷却去重)
   来源:  bilibili UP「期货求魔」9 集教学
   方法论详见 ../METHOD.md
 
-  v7 严格化:
-    入场要求方向严格 (做多只在 UPT, 做空只在 DNT) — 震荡观望, 符合 "均
-    线回踩型趋势跟随" 的本质
-    MAX_HOLD 从 200 提到 1500 (~5min 周期 1 个月), 贴近讲解 "几天到一
-    两个月" 的持仓口径
-    其余沿用 v6: Signal 1 理想型 + Signal 2 洗盘型 + 突破前期高点
+  v8 改进: 加冷却去重
+    同一波 setup 内, BUY_BASE / SELL_BASE / WARN 可能在相邻或相近几根 K
+    线连续点火 (例如同一波回踩做出两个 NL pivot, 或 MA120 反复被穿越).
+    v8 引入 COOL 冷却参数, 每类信号在 COOL 根 K 线内只显示第一次, 之后
+    必须等冷却过完才能再次触发. 仓位代理 IN_LONG/IN_SHORT 也基于冷却后
+    的信号计算, 更接近真实仓位行为.
 
-  v6 -> v7 折中说明:
-    W 底 / 抬高底通常发生在斜率刚转向那一刻 (UPT 刚成立), 严格 UPT 模
-    式可能漏掉趋势刚起步的第一个信号; 若要更早抓拐点, 把 SLP_E 调小
-    (例如 0.00005) 让斜率更快被判定为 UPT.
+  v7 -> v8 折中:
+    COOL 默认 30 (~5min 周期 2.5 小时), 短到可以接连抓相邻 setup,
+    长到能去掉同一 setup 内的连发. 若你的品种波动周期更长,
+    把 COOL 调到 60 或 100.
 
   建议周期: 5 分钟 K 线
 }
@@ -58,11 +58,16 @@ PRE_LOW  := REF(LLV(LOW,  20), K + 1);
 { Signal 1 理想型 + Signal 2 洗盘型 - 都要求 "突破前期高/低" }
 LONG_S1 := NL_HELD  AND C > PRE_HIGH AND C > MA250 AND UPT;
 LONG_S2 := NL_BROKE AND C > PRE_HIGH AND C > MA250 AND UPT;
-BUY_BASE := LONG_S1 OR LONG_S2;
+BUY_RAW := LONG_S1 OR LONG_S2;
 
 SHORT_S1 := NH_HELD  AND C < PRE_LOW AND C < MA250 AND DNT;
 SHORT_S2 := NH_BROKE AND C < PRE_LOW AND C < MA250 AND DNT;
-SELL_BASE := SHORT_S1 OR SHORT_S2;
+SELL_RAW := SHORT_S1 OR SHORT_S2;
+
+{ ===== v8: 冷却去重 (同一 setup 内只显示第一次) ===== }
+COOL := 30;
+BUY_BASE  := BUY_RAW  AND COUNT(BUY_RAW,  COOL) = 1;
+SELL_BASE := SELL_RAW AND COUNT(SELL_RAW, COOL) = 1;
 
 { ===== 出场基本事件 (5_04 三档移动平仓) ===== }
 X_LONG_WARN  := CROSS(MA120, C);   { 跌破 MA120 -> 减仓警告 }
@@ -80,16 +85,24 @@ LAST_SELL := BARSLAST(SELL_BASE);
 LAST_END_SHORT := MIN(BARSLAST(X_SHORT_FULL), BARSLAST(BUY_BASE));
 IN_SHORT := LAST_SELL < LAST_END_SHORT AND LAST_SELL <= MAX_HOLD;
 
-EXIT_LONG_WARN  := X_LONG_WARN  AND IN_LONG;
-EXIT_LONG_FULL  := X_LONG_FULL  AND IN_LONG;
-EXIT_SHORT_WARN := X_SHORT_WARN AND IN_SHORT;
-EXIT_SHORT_FULL := X_SHORT_FULL AND IN_SHORT;
+EXIT_LONG_WARN_RAW  := X_LONG_WARN  AND IN_LONG;
+EXIT_LONG_FULL      := X_LONG_FULL  AND IN_LONG;
+EXIT_SHORT_WARN_RAW := X_SHORT_WARN AND IN_SHORT;
+EXIT_SHORT_FULL     := X_SHORT_FULL AND IN_SHORT;
+
+{ v8: 减仓警告也加冷却 (MA120 反复穿越) }
+EXIT_LONG_WARN  := EXIT_LONG_WARN_RAW  AND COUNT(EXIT_LONG_WARN_RAW,  COOL) = 1;
+EXIT_SHORT_WARN := EXIT_SHORT_WARN_RAW AND COUNT(EXIT_SHORT_WARN_RAW, COOL) = 1;
 
 { ===== 价差极端 (1 年最大价差近似 -> 全部止盈) ===== }
 EXT_N := 1200;
 SPD := C - MA250;
-EXT_L := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD > 0 AND IN_LONG;
-EXT_S := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD < 0 AND IN_SHORT;
+EXT_L_RAW := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD > 0 AND IN_LONG;
+EXT_S_RAW := ABS(SPD) = HHV(ABS(SPD), EXT_N) AND SPD < 0 AND IN_SHORT;
+
+{ v8: 极端价差也加冷却 (新高连续多根时去重) }
+EXT_L := EXT_L_RAW AND COUNT(EXT_L_RAW, COOL) = 1;
+EXT_S := EXT_S_RAW AND COUNT(EXT_S_RAW, COOL) = 1;
 
 { ===== 可视化: STICKLINE 短线 "指向" 对应 K 线 ===== }
 { 模式: 短线条紧贴 K 线一端, 标签在另一端, 一目了然指向哪根 K 线 }
