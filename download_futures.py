@@ -116,8 +116,9 @@ def fetch_contract(session: requests.Session, contract: str, period: int,
                    limiter: "RateLimiter", max_attempts: int = 8) -> pd.DataFrame | None:
     """抓取单个合约的 N 分钟 K 线。
 
-    用 HTTP 状态码区分两种情况:
+    用 HTTP 状态码区分三种情况:
       * 456(反爬封禁) 或网络异常 -> 限流，长退避后重试，直到成功
+      * 403/404                 -> 该合约已下架/不可查，返回 None(不重试)
       * 200 但无数据数组         -> 合约不存在，返回 None(不重试)
       * 200 且有数组             -> 返回解析后的 DataFrame
 
@@ -131,6 +132,8 @@ def fetch_contract(session: requests.Session, contract: str, period: int,
             resp = session.get(url, timeout=20)
             if resp.status_code == 456:
                 raise Throttled(contract)
+            if resp.status_code in (403, 404):
+                return None  # 老合约已下架/不可查, 跳过
             resp.raise_for_status()
             text = resp.text
             match = re.search(r"\[.*\]", text, re.S)
@@ -238,6 +241,8 @@ def main():
                         help="向前回溯多少个月的到期合约(扩历史用)")
     parser.add_argument("--forward-months", type=int, default=19,
                         help="向后探测多少个月的远月合约")
+    parser.add_argument("--stop-after-empty", type=int, default=4,
+                        help="找到首个真实合约后, 连续N个月空缺则停止探测远月(扩长历史时调大防截断)")
     parser.add_argument("--retry-passes", type=int, default=4,
                         help="对无数据/不完整品种额外重试的轮数(每轮前冷却)")
     parser.add_argument("--cooldown", type=float, default=30.0,
@@ -282,7 +287,8 @@ def main():
             exchange, name = PRODUCTS.get(product, ("?", product))
             try:
                 df, complete = download_product(product, args.period, months,
-                                                min_dt, session, limiter)
+                                                min_dt, session, limiter,
+                                                args.stop_after_empty)
             except Exception as exc:
                 print(f"❌ {product:4s} {name:8s} 异常: {exc}", flush=True)
                 retry_next.append(product)
