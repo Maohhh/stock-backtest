@@ -234,6 +234,10 @@ def main():
                         help="全局最小请求间隔(秒)，防反爬封禁")
     parser.add_argument("--window-days", type=int, default=75,
                         help="保留最近 N 天的加权数据")
+    parser.add_argument("--back-months", type=int, default=3,
+                        help="向前回溯多少个月的到期合约(扩历史用)")
+    parser.add_argument("--forward-months", type=int, default=19,
+                        help="向后探测多少个月的远月合约")
     parser.add_argument("--retry-passes", type=int, default=4,
                         help="对无数据/不完整品种额外重试的轮数(每轮前冷却)")
     parser.add_argument("--cooldown", type=float, default=30.0,
@@ -247,7 +251,7 @@ def main():
     else:
         products = list(PRODUCTS.keys())
 
-    months = candidate_months()
+    months = candidate_months(args.back_months, args.forward_months)
     min_dt = pd.Timestamp(datetime.now() - timedelta(days=args.window_days))
     out_root = Path(args.outdir) / f"{args.period}min"
     out_root.mkdir(parents=True, exist_ok=True)
