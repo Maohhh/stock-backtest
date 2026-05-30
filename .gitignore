@@ -1,4 +1,8 @@
-/data/
+/data/*
+# 期货 15 分钟加权数据需要随仓库一起保存，单独放开
+!/data/futures_15m/
+__pycache__/
+*.pyc
 findings.md
 progress.md
 task_plan.md

@@ -1,0 +1,422 @@
+{
+  "沪铜": {
+    "secid": "159.cufi",
+    "code": "cufi",
+    "emname": "沪铜加权",
+    "jys": "EFI"
+  },
+  "沪铝": {
+    "secid": "159.alfi",
+    "code": "alfi",
+    "emname": "沪铝加权",
+    "jys": "EFI"
+  },
+  "沪锌": {
+    "secid": "159.znfi",
+    "code": "znfi",
+    "emname": "沪锌加权",
+    "jys": "EFI"
+  },
+  "沪铅": {
+    "secid": "159.pbfi",
+    "code": "pbfi",
+    "emname": "沪铅加权",
+    "jys": "EFI"
+  },
+  "沪镍": {
+    "secid": "159.nifi",
+    "code": "nifi",
+    "emname": "沪镍加权",
+    "jys": "EFI"
+  },
+  "沪锡": {
+    "secid": "159.snfi",
+    "code": "snfi",
+    "emname": "沪锡加权",
+    "jys": "EFI"
+  },
+  "螺纹钢": {
+    "secid": "159.rbfi",
+    "code": "rbfi",
+    "emname": "螺纹钢加权",
+    "jys": "EFI"
+  },
+  "线材": {
+    "secid": "159.wrfi",
+    "code": "wrfi",
+    "emname": "线材加权",
+    "jys": "EFI"
+  },
+  "热卷": {
+    "secid": "159.hcfi",
+    "code": "hcfi",
+    "emname": "热卷加权",
+    "jys": "EFI"
+  },
+  "不锈钢": {
+    "secid": "159.ssfi",
+    "code": "ssfi",
+    "emname": "不锈钢加权",
+    "jys": "EFI"
+  },
+  "燃油": {
+    "secid": "159.fufi",
+    "code": "fufi",
+    "emname": "燃油加权",
+    "jys": "EFI"
+  },
+  "沥青": {
+    "secid": "159.bufi",
+    "code": "bufi",
+    "emname": "沥青加权",
+    "jys": "EFI"
+  },
+  "橡胶": {
+    "secid": "159.rufi",
+    "code": "rufi",
+    "emname": "橡胶加权",
+    "jys": "EFI"
+  },
+  "纸浆": {
+    "secid": "159.spfi",
+    "code": "spfi",
+    "emname": "纸浆加权",
+    "jys": "EFI"
+  },
+  "氧化铝": {
+    "secid": "159.aofi",
+    "code": "aofi",
+    "emname": "氧化铝加权",
+    "jys": "EFI"
+  },
+  "原油": {
+    "secid": "159.scfi",
+    "code": "scfi",
+    "emname": "原油加权",
+    "jys": "EFI"
+  },
+  "低硫燃油": {
+    "secid": "159.lufi",
+    "code": "lufi",
+    "emname": "低硫燃油加权",
+    "jys": "EFI"
+  },
+  "20号胶": {
+    "secid": "159.nrfi",
+    "code": "nrfi",
+    "emname": "20号胶加权",
+    "jys": "EFI"
+  },
+  "国际铜": {
+    "secid": "159.bcfi",
+    "code": "bcfi",
+    "emname": "国际铜加权",
+    "jys": "EFI"
+  },
+  "集运欧线": {
+    "secid": "159.ecfi",
+    "code": "ecfi",
+    "emname": "欧线集运加权",
+    "jys": "EFI"
+  },
+  "豆一": {
+    "secid": "159.afi",
+    "code": "afi",
+    "emname": "豆一加权",
+    "jys": "EFI"
+  },
+  "豆二": {
+    "secid": "159.bfi",
+    "code": "bfi",
+    "emname": "豆二加权",
+    "jys": "EFI"
+  },
+  "豆粕": {
+    "secid": "159.mfi",
+    "code": "mfi",
+    "emname": "豆粕加权",
+    "jys": "EFI"
+  },
+  "豆油": {
+    "secid": "159.yfi",
+    "code": "yfi",
+    "emname": "豆油加权",
+    "jys": "EFI"
+  },
+  "棕榈油": {
+    "secid": "159.pfi",
+    "code": "pfi",
+    "emname": "棕榈油加权",
+    "jys": "EFI"
+  },
+  "玉米": {
+    "secid": "159.cfi",
+    "code": "cfi",
+    "emname": "玉米加权",
+    "jys": "EFI"
+  },
+  "玉米淀粉": {
+    "secid": "159.csfi",
+    "code": "csfi",
+    "emname": "淀粉加权",
+    "jys": "EFI"
+  },
+  "鸡蛋": {
+    "secid": "159.jdfi",
+    "code": "jdfi",
+    "emname": "鸡蛋加权",
+    "jys": "EFI"
+  },
+  "生猪": {
+    "secid": "159.lhfi",
+    "code": "lhfi",
+    "emname": "生猪加权",
+    "jys": "EFI"
+  },
+  "焦炭": {
+    "secid": "159.jfi",
+    "code": "jfi",
+    "emname": "焦炭加权",
+    "jys": "EFI"
+  },
+  "焦煤": {
+    "secid": "159.jmfi",
+    "code": "jmfi",
+    "emname": "焦煤加权",
+    "jys": "EFI"
+  },
+  "铁矿石": {
+    "secid": "159.ifi",
+    "code": "ifi",
+    "emname": "铁矿石加权",
+    "jys": "EFI"
+  },
+  "聚丙烯": {
+    "secid": "159.ppfi",
+    "code": "ppfi",
+    "emname": "聚丙烯加权",
+    "jys": "EFI"
+  },
+  "乙二醇": {
+    "secid": "159.egfi",
+    "code": "egfi",
+    "emname": "乙二醇加权",
+    "jys": "EFI"
+  },
+  "苯乙烯": {
+    "secid": "159.ebfi",
+    "code": "ebfi",
+    "emname": "苯乙烯加权",
+    "jys": "EFI"
+  },
+  "纤维板": {
+    "secid": "159.fbfi",
+    "code": "fbfi",
+    "emname": "纤维板加权",
+    "jys": "EFI"
+  },
+  "胶合板": {
+    "secid": "159.bbfi",
+    "code": "bbfi",
+    "emname": "胶合板加权",
+    "jys": "EFI"
+  },
+  "白糖": {
+    "secid": "159.SRFI",
+    "code": "SRFI",
+    "emname": "白糖加权",
+    "jys": "EFI"
+  },
+  "棉花": {
+    "secid": "159.CFFI",
+    "code": "CFFI",
+    "emname": "棉花加权",
+    "jys": "EFI"
+  },
+  "棉纱": {
+    "secid": "159.CYFI",
+    "code": "CYFI",
+    "emname": "棉纱加权",
+    "jys": "EFI"
+  },
+  "PTA": {
+    "secid": "159.TAFI",
+    "code": "TAFI",
+    "emname": "PTA加权",
+    "jys": "EFI"
+  },
+  "甲醇": {
+    "secid": "159.MAFI",
+    "code": "MAFI",
+    "emname": "甲醇加权",
+    "jys": "EFI"
+  },
+  "玻璃": {
+    "secid": "159.FGFI",
+    "code": "FGFI",
+    "emname": "玻璃加权",
+    "jys": "EFI"
+  },
+  "纯碱": {
+    "secid": "159.SAFI",
+    "code": "SAFI",
+    "emname": "纯碱加权",
+    "jys": "EFI"
+  },
+  "菜粕": {
+    "secid": "159.RMFI",
+    "code": "RMFI",
+    "emname": "菜粕加权",
+    "jys": "EFI"
+  },
+  "菜油": {
+    "secid": "159.OIFI",
+    "code": "OIFI",
+    "emname": "菜油加权",
+    "jys": "EFI"
+  },
+  "花生": {
+    "secid": "159.PKFI",
+    "code": "PKFI",
+    "emname": "花生加权",
+    "jys": "EFI"
+  },
+  "苹果": {
+    "secid": "159.APFI",
+    "code": "APFI",
+    "emname": "苹果加权",
+    "jys": "EFI"
+  },
+  "红枣": {
+    "secid": "159.CJFI",
+    "code": "CJFI",
+    "emname": "红枣加权",
+    "jys": "EFI"
+  },
+  "短纤": {
+    "secid": "159.PFFI",
+    "code": "PFFI",
+    "emname": "短纤加权",
+    "jys": "EFI"
+  },
+  "尿素": {
+    "secid": "159.URFI",
+    "code": "URFI",
+    "emname": "尿素加权",
+    "jys": "EFI"
+  },
+  "硅铁": {
+    "secid": "159.SFFI",
+    "code": "SFFI",
+    "emname": "硅铁加权",
+    "jys": "EFI"
+  },
+  "锰硅": {
+    "secid": "159.SMFI",
+    "code": "SMFI",
+    "emname": "锰硅加权",
+    "jys": "EFI"
+  },
+  "烧碱": {
+    "secid": "159.SHFI",
+    "code": "SHFI",
+    "emname": "烧碱加权",
+    "jys": "EFI"
+  },
+  "对二甲苯": {
+    "secid": "159.PXFI",
+    "code": "PXFI",
+    "emname": "对二甲苯加权",
+    "jys": "EFI"
+  },
+  "强麦": {
+    "secid": "159.WHFI",
+    "code": "WHFI",
+    "emname": "强麦加权",
+    "jys": "EFI"
+  },
+  "油菜籽": {
+    "secid": "159.RSFI",
+    "code": "RSFI",
+    "emname": "菜籽加权",
+    "jys": "EFI"
+  },
+  "瓶片": {
+    "secid": "159.PRFI",
+    "code": "PRFI",
+    "emname": "瓶片加权",
+    "jys": "EFI"
+  },
+  "普麦": {
+    "secid": "159.PMFI",
+    "code": "PMFI",
+    "emname": "普麦加权",
+    "jys": "EFI"
+  },
+  "粳稻": {
+    "secid": "159.JRFI",
+    "code": "JRFI",
+    "emname": "粳稻加权",
+    "jys": "EFI"
+  },
+  "早籼稻": {
+    "secid": "159.RIFI",
+    "code": "RIFI",
+    "emname": "早籼稻加权",
+    "jys": "EFI"
+  },
+  "工业硅": {
+    "secid": "159.sifi",
+    "code": "sifi",
+    "emname": "工业硅加权",
+    "jys": "EFI"
+  },
+  "碳酸锂": {
+    "secid": "159.lcfi",
+    "code": "lcfi",
+    "emname": "碳酸锂加权",
+    "jys": "EFI"
+  },
+  "多晶硅": {
+    "secid": "159.psfi",
+    "code": "psfi",
+    "emname": "多晶硅加权",
+    "jys": "EFI"
+  },
+  "黄金": {
+    "secid": "159.aufi",
+    "code": "aufi",
+    "emname": "沪金加权",
+    "jys": "EFI"
+  },
+  "白银": {
+    "secid": "159.agfi",
+    "code": "agfi",
+    "emname": "沪银加权",
+    "jys": "EFI"
+  },
+  "丁二烯橡胶": {
+    "secid": "159.brfi",
+    "code": "brfi",
+    "emname": "丁二烯胶加权",
+    "jys": "EFI"
+  },
+  "聚乙烯": {
+    "secid": "159.lfi",
+    "code": "lfi",
+    "emname": "塑料加权",
+    "jys": "EFI"
+  },
+  "聚氯乙烯": {
+    "secid": "159.vfi",
+    "code": "vfi",
+    "emname": "PVC加权",
+    "jys": "EFI"
+  },
+  "液化石油气": {
+    "secid": "159.pgfi",
+    "code": "pgfi",
+    "emname": "LPG加权",
+    "jys": "EFI"
+  }
+}
