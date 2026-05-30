@@ -69,7 +69,7 @@ def VALUEWHEN(cond, x):
 # --------------------------------------------------------------------------
 # 指标计算(逐行对应 THS 源码)
 # --------------------------------------------------------------------------
-def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
+def compute_indicators(df: pd.DataFrame, use_macro: bool = True) -> pd.DataFrame:
     C, H, L = df["close"], df["high"], df["low"]
 
     ma20 = MA(C, 20)
@@ -77,8 +77,13 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     ma250 = MA(C, 250)
     mamc = MA(C, MACRO)
 
-    bull = C > mamc
-    bear = C < mamc
+    if use_macro:
+        bull = C > mamc
+        bear = C < mamc
+    else:
+        # 去掉宏观趋势门: 门恒开(回到原版「期货求魔」)
+        bull = pd.Series(True, index=C.index)
+        bear = pd.Series(True, index=C.index)
 
     slp = (ma250 - REF(ma250, SLP_N)) / C
     upt = slp > SLP_E
@@ -280,7 +285,11 @@ def main():
     ap.add_argument("--datadir", default="data_futures/15min")
     ap.add_argument("--products", default=None, help="逗号分隔, 默认全部")
     ap.add_argument("--out", default="data_futures/backtest_qiumo")
+    ap.add_argument("--no-macro", action="store_true",
+                    help="去掉宏观趋势门(回到原版期货求魔)")
     args = ap.parse_args()
+    use_macro = not args.no_macro
+    out_dir = args.out if use_macro else args.out + "_nomacro"
 
     files = sorted(glob.glob(os.path.join(args.datadir, "*.parquet")))
     if args.products:
@@ -292,7 +301,7 @@ def main():
     for f in files:
         product = os.path.basename(f)[:-8]
         df = pd.read_parquet(f).sort_values("datetime").reset_index(drop=True)
-        ind = compute_indicators(df)
+        ind = compute_indicators(df, use_macro=use_macro)
         warm_bars = int(ind["warm"].sum())
         if warm_bars < 50:
             rows.append({"product": product, "bars": len(df),
@@ -305,17 +314,17 @@ def main():
         rows.append({"product": product, "bars": len(df),
                      "warm_bars": warm_bars, **s})
 
-    os.makedirs(args.out, exist_ok=True)
+    os.makedirs(out_dir, exist_ok=True)
     res = pd.DataFrame(rows)
-    res.to_csv(os.path.join(args.out, "by_product.csv"), index=False)
+    res.to_csv(os.path.join(out_dir, "by_product.csv"), index=False)
     if all_trades:
         pd.DataFrame(all_trades).to_csv(
-            os.path.join(args.out, "trades.csv"), index=False)
+            os.path.join(out_dir, "trades.csv"), index=False)
 
     # 汇总
     traded = res[res.get("trades", 0).fillna(0) > 0] if "trades" in res else res
     print("=" * 72)
-    print("期货求魔·趋势过滤版 V2 回测结果")
+    print("期货求魔 回测结果  [宏观门: %s]" % ("开" if use_macro else "关/原版"))
     print("=" * 72)
     if all_trades:
         agg = summarize(all_trades)
@@ -333,7 +342,7 @@ def main():
     else:
         print("无交易(预热不足或无信号)")
     print("=" * 72)
-    print(f"明细已写入: {args.out}/")
+    print(f"明细已写入: {out_dir}/")
 
 
 if __name__ == "__main__":
