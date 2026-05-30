@@ -24,8 +24,8 @@ MA20:=MA(CLOSE,N2);
 金叉:=CROSS(MA10,MA20);
 死叉:=CROSS(MA20,MA10);
 
-做多:=金叉 AND DIF>0;
-做空:=死叉 AND DIF<0;
+做多:=金叉 AND DIF>0 AND DEA>0;
+做空:=死叉 AND DIF<0 AND DEA<0;
 
 {------------ 在0轴附近标注信号 ------------}
 DRAWICON(做多,0,1);

@@ -29,8 +29,8 @@ DEA:=EMA(DIF,MID);
 死叉:=CROSS(MA20,MA10);
 
 { ---- 交易系统信号 ---- }
-ENTERLONG:金叉 AND DIF>0;    { 0轴上方金叉 -> 开多 }
-EXITLONG:死叉;               { 死叉 -> 平多 }
+ENTERLONG:金叉 AND DIF>0 AND DEA>0;    { 0轴上方金叉 -> 开多 }
+EXITLONG:死叉;                         { 死叉 -> 平多 }
 
-ENTERSHORT:死叉 AND DIF<0;   { 0轴下方死叉 -> 开空 }
-EXITSHORT:金叉;              { 金叉 -> 平空 }
+ENTERSHORT:死叉 AND DIF<0 AND DEA<0;   { 0轴下方死叉 -> 开空 }
+EXITSHORT:金叉;                        { 金叉 -> 平空 }
