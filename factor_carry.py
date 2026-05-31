@@ -45,14 +45,16 @@ reb=C.index[::20]                            # 每20交易日调仓
 for q in [0.33]:
     x=Cs.sub(Cs.median(axis=1),axis=0)
     w=x.div(x.abs().sum(axis=1),axis=0)
-    w=w.reindex(C.index).where(C.index.isin(reb)).ffill()  # 月度持有
+    mask=pd.Series(C.index.isin(reb),index=C.index)
+    w=w.reindex(C.index).where(mask, np.nan).ffill()  # 月度持有
     pnl=(w.shift(1)*ret).sum(axis=1);turn=(w-w.shift(1)).abs().sum(axis=1)
     perf(pnl,turn,"  截面carry(月调)")
     perf(-pnl,turn,"  截面carry反向(对照)")
 
 print("\n--- 时序 carry (carry符号定多空, 月度) ---")
 w=np.sign(Cs); w=w.div(w.abs().sum(axis=1),axis=0)
-w=w.reindex(C.index).where(C.index.isin(reb)).ffill()
+mask=pd.Series(C.index.isin(reb),index=C.index)
+w=w.reindex(C.index).where(mask, np.nan).ffill()
 pnl=(w.shift(1)*ret).sum(axis=1);turn=(w-w.shift(1)).abs().sum(axis=1)
 perf(pnl,turn,"  时序carry(月调)")
 
