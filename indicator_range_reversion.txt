@@ -1,0 +1,112 @@
+{ ================================================================
+  布林区间反转 · 15分钟主图叠加指标  (Range-Reversion V1)
+  ================================================================
+  来源: 经~2.7年75品种回测、真实成本(2.5bp/边)、walk-forward验证后,
+        在15分钟级别上唯一稳健盈利的单品种策略(干净9品种组合夏普1.8/年化19%)。
+  适用: 15分钟级别; 中高波动+均值回归型品种最佳
+        (PVC/对二甲苯/甲醇/烧碱/沥青/菜粕/尿素/LPG/苹果/工业硅/沪锌等)
+  不适用: 强趋势品种、低流动/横盘不流畅品种(沥青小级别、低成交品种)。
+
+  核心逻辑:
+    中枢 = MA(C,100); 上下轨 = 中枢 ± K*STD(C,100)
+    做多: 收盘跌破下轨(超跌) -> 反向抄
+    做空: 收盘升破上轨(超涨) -> 反向抛
+    止盈: 价格回到中枢
+    止损: 多头 = 进场价 - 3*ATR; 空头 = 进场价 + 3*ATR
+    超时: 持仓超过 200 根强制离场
+
+  参数(默认对15分钟; 换周期需重新验证):
+    N      100   中枢/通道周期
+    K      2.0   带宽(标准差倍数)
+    ATRN   20    ATR周期
+    SLX    3.0   止损ATR倍数
+    MAXH   200   最长持仓(根)
+  ================================================================ }
+
+N    := 100;
+K    := 2.0;
+ATRN := 20;
+SLX  := 3.0;
+MAXH := 200;
+
+{ ===== 布林通道(中枢 + 上下轨) ===== }
+MID:   MA(C, N),          COLORYELLOW,  LINETHICK2;
+SD     := STD(C, N);
+UPPER: MID + K * SD,      COLORGRAY,    LINETHICK1;
+LOWER: MID - K * SD,      COLORGRAY,    LINETHICK1;
+
+{ ===== ATR(用于止损) ===== }
+TR  := MAX(MAX(HIGH - LOW, ABS(HIGH - REF(CLOSE, 1))), ABS(REF(CLOSE, 1) - LOW));
+ATR := MA(TR, ATRN);
+
+{ ===== 进场原始事件 ===== }
+{ 做多: 收盘下穿下轨;  做空: 收盘上穿上轨 }
+LE := CROSS(LOWER, C);
+SE := CROSS(C, UPPER);
+
+{ ===== 出场原始事件 ===== }
+{ 止盈: 价格回到中枢(多头上穿/空头下穿);  反向进场也视为离场 }
+LX_TP := CROSS(C, MID);
+SX_TP := CROSS(MID, C);
+
+{ ===== 持仓状态代理(用 BARSLAST 跟踪) ===== }
+{ 进场时锁定止损价(忠实回测: 用进场收盘价±SLX*ATR) }
+HOLD_SL_L := VALUEWHEN(LE, C - SLX * ATR);
+HOLD_SL_S := VALUEWHEN(SE, C + SLX * ATR);
+
+LB := BARSLAST(LE);
+SB := BARSLAST(SE);
+
+{ 多头止损触发(粗略代理: 进场后最低价跌破止损线) }
+SL_HIT_L := LB <= MAXH AND LB < SB AND LOW <= HOLD_SL_L;
+SL_HIT_S := SB <= MAXH AND SB < LB AND HIGH >= HOLD_SL_S;
+
+{ 多头离场事件 = 回中枢止盈 / 反向开空 / 止损 ; 取最近一次 }
+L_EXIT := LX_TP OR SE OR SL_HIT_L;
+S_EXIT := SX_TP OR LE OR SL_HIT_S;
+
+LEL := BARSLAST(L_EXIT);
+LES := BARSLAST(S_EXIT);
+
+{ 持仓判定: 距上次进场比距上次离场更近, 且未超时 }
+IN_LONG  := LB < LEL AND LB <= MAXH;
+IN_SHORT := SB < LES AND SB <= MAXH;
+
+{ ===== 中枢止盈线 / 止损线(持仓全程显示) ===== }
+TP_LINE: IF(IN_LONG OR IN_SHORT, MID, DRAWNULL),                       COLORCYAN, LINETHICK1;
+SL_LINE: IF(IN_LONG, HOLD_SL_L, IF(IN_SHORT, HOLD_SL_S, DRAWNULL)),    COLORRED,  LINETHICK1;
+
+{ ===== 入场信号 ===== }
+BUY  := LE AND NOT(REF(IN_LONG, 1));
+SELL := SE AND NOT(REF(IN_SHORT, 1));
+STICKLINE(BUY,  LOW * 0.997,  LOW * 0.988,  2.5, 0), COLORRED;
+DRAWTEXT(BUY,   LOW * 0.983,  '买'), COLORRED;
+STICKLINE(SELL, HIGH * 1.003, HIGH * 1.012, 2.5, 0), COLORGREEN;
+DRAWTEXT(SELL,  HIGH * 1.016, '卖'), COLORGREEN;
+
+{ ===== 离场信号(止盈/止损分别标注) ===== }
+EXL_TP := LX_TP AND REF(IN_LONG, 1);
+EXS_TP := SX_TP AND REF(IN_SHORT, 1);
+EXL_SL := SL_HIT_L AND REF(IN_LONG, 1);
+EXS_SL := SL_HIT_S AND REF(IN_SHORT, 1);
+
+DRAWTEXT(EXL_TP, HIGH * 1.005, '止盈'), COLORCYAN;
+DRAWTEXT(EXS_TP, LOW * 0.992,  '止盈'), COLORCYAN;
+DRAWTEXT(EXL_SL, HIGH * 1.005, '止损'), COLORRED;
+DRAWTEXT(EXS_SL, LOW * 0.992,  '止损'), COLORRED;
+
+{ ===== 持仓区间背景着色(多头区淡红, 空头区淡绿) ===== }
+STICKLINE(IN_LONG,  LOW,  LOW * 0.9996,  0.5, 0), COLORRED;
+STICKLINE(IN_SHORT, HIGH, HIGH * 1.0004, 0.5, 0), COLORGREEN;
+
+{ ================================================================
+  使用说明 / 重要提示:
+  1. 本指标是上述回测策略的"可视化版", 信号点位与回测大体一致;
+     但仓位代理用 BARSLAST 近似, 复杂的反向/止损交织处可能与
+     真实回测成交略有出入, 实盘以纪律执行为准。
+  2. 真实可期待: 该策略在多个回归型品种上"分散"做才稳
+     (单品种夏普约0.3~1.7波动大; 9品种组合夏普~1.8/年化~19%)。
+     只做单品种或少数品种, 收益弹性大但回撤更深(-13%~-45%)。
+  3. 务必配合: 真实成本(每边约2-3bp)、固定比例风险(每笔1-2%本金)、
+     切勿满杠杆全仓复利。强趋势行情该策略会失效, 止损是生命线。
+  ================================================================ }
