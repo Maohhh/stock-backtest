@@ -1,0 +1,91 @@
+{ ================================================================
+  布林区间反转 · 同花顺 15分钟 主图叠加指标  (Range-Reversion V1)
+  ================================================================
+  来源: ~2.7年75品种回测、真实成本2.5bp/边、walk-forward验证后,
+        15分钟级别上唯一稳健盈利的单品种策略(9品种组合夏普1.8/年化19%)。
+  适用: 同花顺 15分钟周期; 中高波动+均值回归型品种最佳
+        (PVC/对二甲苯/甲醇/烧碱/沥青/菜粕/尿素/液化气/苹果/工业硅/沪锌等)。
+  ★ 使用方法: 新建指标公式 -> 类型选「主图叠加」-> 粘贴本代码 -> 应用。
+  ================================================================ }
+
+N    := 100;
+K    := 2;
+ATRN := 20;
+SLX  := 3;
+MAXH := 200;
+
+{ ===== 布林通道: 中枢 + 上下轨 (主图叠加) ===== }
+SD     := STD(C, N);
+MID:   MA(C, N),       COLORYELLOW, LINETHICK2;
+UPPER: MID + K * SD,   COLORGRAY,   LINETHICK1;
+LOWER: MID - K * SD,   COLORGRAY,   LINETHICK1;
+
+{ ===== ATR (止损用) ===== }
+TR  := MAX(MAX(HIGH - LOW, ABS(HIGH - REF(C, 1))), ABS(REF(C, 1) - LOW));
+ATR := MA(TR, ATRN);
+
+{ ===== 进场原始事件: 收盘破下轨做多 / 破上轨做空 ===== }
+LE := CROSS(LOWER, C);
+SE := CROSS(C, UPPER);
+
+{ ===== 止盈原始事件: 价格回到中枢 ===== }
+LTP := CROSS(C, MID);
+STP := CROSS(MID, C);
+
+{ ===== 进场时锁定止损价 (进场收盘价 ± SLX*ATR) ===== }
+SLL := VALUEWHEN(LE, C - SLX * ATR);
+SLS := VALUEWHEN(SE, C + SLX * ATR);
+
+LB := BARSLAST(LE);
+SB := BARSLAST(SE);
+
+{ 止损触发代理 }
+SLHITL := LB <= MAXH AND LB < SB AND LOW <= SLL;
+SLHITS := SB <= MAXH AND SB < LB AND HIGH >= SLS;
+
+{ 离场事件 = 止盈 / 反向进场 / 止损 }
+LEXIT := LTP OR SE OR SLHITL;
+SEXIT := STP OR LE OR SLHITS;
+
+LEL := BARSLAST(LEXIT);
+LES := BARSLAST(SEXIT);
+
+{ 持仓判定: 距上次进场比距上次离场近, 且未超时 }
+INLONG  := LB < LEL AND LB <= MAXH;
+INSHORT := SB < LES AND SB <= MAXH;
+
+{ ===== 中枢止盈线(青) / 止损线(红), 持仓全程显示 ===== }
+止盈线: IF(INLONG OR INSHORT, MID, DRAWNULL), COLORCYAN, LINETHICK1;
+止损线: IF(INLONG, SLL, IF(INSHORT, SLS, DRAWNULL)), COLORRED, LINETHICK1;
+
+{ ===== 入场信号(新进场才触发, 避免连续重复) ===== }
+KAIDUO := LE AND NOT(REF(INLONG, 1));
+KAIKONG := SE AND NOT(REF(INSHORT, 1));
+STICKLINE(KAIDUO, LOW * 0.997, LOW * 0.988, 2.5, 0), COLORRED;
+DRAWTEXT(KAIDUO, LOW * 0.983, '买'), COLORRED;
+STICKLINE(KAIKONG, HIGH * 1.003, HIGH * 1.012, 2.5, 0), COLORGREEN;
+DRAWTEXT(KAIKONG, HIGH * 1.016, '卖'), COLORGREEN;
+
+{ ===== 离场信号: 止盈 / 止损 分别标注 ===== }
+PINGTPL := LTP AND REF(INLONG, 1);
+PINGTPS := STP AND REF(INSHORT, 1);
+PINGSLL := SLHITL AND REF(INLONG, 1);
+PINGSLS := SLHITS AND REF(INSHORT, 1);
+DRAWTEXT(PINGTPL, HIGH * 1.005, '止盈'), COLORCYAN;
+DRAWTEXT(PINGTPS, LOW * 0.992, '止盈'), COLORCYAN;
+DRAWTEXT(PINGSLL, HIGH * 1.005, '止损'), COLORRED;
+DRAWTEXT(PINGSLS, LOW * 0.992, '止损'), COLORRED;
+
+{ ===== 持仓区间着色: 多头区K线下淡红, 空头区上淡绿 ===== }
+STICKLINE(INLONG, LOW, LOW * 0.9996, 0.5, 0), COLORRED;
+STICKLINE(INSHORT, HIGH, HIGH * 1.0004, 0.5, 0), COLORGREEN;
+
+{ ================================================================
+  提示:
+  1. 本指标是回测策略的可视化版; 仓位用BARSLAST近似, 复杂交织处
+     信号可能与真实回测略有出入, 实盘以纪律执行为准。
+  2. edge来自"多个回归型品种分散做"(9品种组合夏普1.8/年化19%);
+     只盯单品种收益弹性大但回撤深(-13%~-45%)。
+  3. 务必: 真实成本每边2-3bp、每笔风险1-2%本金、勿满杠杆全仓复利;
+     强趋势行情该策略失效, 止损是生命线。
+  ================================================================ }
