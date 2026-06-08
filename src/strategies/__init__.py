@@ -7,6 +7,7 @@ from .kdj_strategy import KDJStrategy
 from .atr_strategy import ATRStrategy
 from .main_force_strategy import MainForceResonanceStrategy
 from .futures_xs_reversal import FuturesXSReversalStrategy
+from .trend_following import TrendFollowingStrategy
 
 __all__ = [
     'BaseStrategy',
@@ -19,4 +20,5 @@ __all__ = [
     'ATRStrategy',
     'MainForceResonanceStrategy',
     'FuturesXSReversalStrategy',
+    'TrendFollowingStrategy',
 ]

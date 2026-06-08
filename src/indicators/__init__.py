@@ -12,6 +12,7 @@ from .kdj import kdj
 from .atr import atr
 from .main_force import max_force_resonance, xpct_only
 from .xs_reversal import cross_sectional_reversal, target_weights
+from .trend_ensemble import trend_signal, efficiency_ratio
 
 __all__ = [
     'sma',
@@ -25,4 +26,6 @@ __all__ = [
     'xpct_only',
     'cross_sectional_reversal',
     'target_weights',
+    'trend_signal',
+    'efficiency_ratio',
 ]
