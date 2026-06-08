@@ -6,15 +6,17 @@ from .bollinger_strategy import BollingerStrategy
 from .kdj_strategy import KDJStrategy
 from .atr_strategy import ATRStrategy
 from .main_force_strategy import MainForceResonanceStrategy
+from .futures_xs_reversal import FuturesXSReversalStrategy
 
 __all__ = [
-    'BaseStrategy', 
-    'BuyAndHoldStrategy', 
+    'BaseStrategy',
+    'BuyAndHoldStrategy',
     'MovingAverageCrossStrategy',
     'RSIStrategy',
     'MACDStrategy',
     'BollingerStrategy',
     'KDJStrategy',
     'ATRStrategy',
-    'MainForceResonanceStrategy'
+    'MainForceResonanceStrategy',
+    'FuturesXSReversalStrategy',
 ]

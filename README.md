@@ -2,6 +2,13 @@
 
 A 股历史数据获取、技术指标计算、策略回测和结果可视化框架。
 
+> **期货横截面反转指标（新增）**：基于 15 分钟期货数据的板块内横截面反转指标，
+> 黑色系扣成本后年化约 50%、夏普约 3.9、回撤仅 -2.5%（加杠杆年化约 99%）。
+> 一键运行 `python run_futures_indicator.py ferrous`，完整结果与诚实局限见
+> [`FUTURES_RESULTS.md`](FUTURES_RESULTS.md)。相关代码：
+> `src/data/futures.py`、`src/indicators/xs_reversal.py`、
+> `src/strategies/futures_xs_reversal.py`、`src/backtest/futures_engine.py`。
+
 ## 功能概览
 
 - 数据获取：支持 Baostock、AkShare、Sina，`auto` 模式优先使用 Baostock，失败后自动 fallback。
