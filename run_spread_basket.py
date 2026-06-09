@@ -19,9 +19,8 @@ from src.strategies.spread_basket import SpreadBasket, backtest_segments
 # 篮子成分：(名称, 品种A, 品种B, 价差模式) —— 选低相关的协整对
 PAIRS = [
     ("玉米-淀粉", "C", "CS", "diff"),
-    ("螺纹-热卷", "RB", "HC", "diff"),
-    ("铁矿-螺纹", "I", "RB", "ratio"),
-    ("豆粕-菜粕", "M", "RM", "ratio"),
+    ("PVC-聚丙烯", "V", "PP", "diff"),
+    ("棉花-棉纱", "CF", "CY", "diff"),
 ]
 PRODUCTS = sorted({p for _, a, b, _ in PAIRS for p in (a, b)})
 

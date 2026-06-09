@@ -16,19 +16,19 @@ import pandas as pd
 from src.data.contracts import download_product_contracts
 from src.backtest.spread_money import SpreadSpec, backtest_spread_money
 
-# 套利对 + 对冲手数（按名义价值大致平衡）
+# 套利对（全部为券商挂牌单一套利标的, 交易所比例 1:1, diff 价差）
+# 精选"收益/回撤比"最优的 3 个核心对，分属淀粉/塑料/棉纺三个不相关板块
 SPREADS = [
     SpreadSpec("玉米-淀粉", "C", "CS", lots_a=1, lots_b=1, mode="diff"),
-    SpreadSpec("螺纹-热卷", "RB", "HC", lots_a=1, lots_b=1, mode="diff"),
-    SpreadSpec("铁矿-螺纹", "I", "RB", lots_a=1, lots_b=2, mode="ratio"),
-    SpreadSpec("豆粕-菜粕", "M", "RM", lots_a=1, lots_b=1, mode="ratio"),
+    SpreadSpec("PVC-聚丙烯", "V", "PP", lots_a=1, lots_b=1, mode="diff"),
+    SpreadSpec("棉花-棉纱", "CF", "CY", lots_a=1, lots_b=1, mode="diff"),
 ]
 UTIL = 0.5   # 每个套利对最多用掉其资金额度的 50%（留安全垫）
 
 
 def ensure_data():
     if not os.path.isdir("data/futures_contracts") or len(os.listdir("data/futures_contracts")) < 80:
-        for p in ["C", "CS", "RB", "HC", "I", "M", "RM"]:
+        for p in ["C", "CS", "V", "PP", "CF", "CY"]:
             download_product_contracts(p)
 
 
@@ -80,7 +80,7 @@ def main():
     print(f"  回测区间: {equity.index[0].date()} ~ {equity.index[-1].date()}  ({years:.1f} 年)")
     print(f"  总盈利:   ¥{total_profit:,.0f}   (本金 ¥{capital:,.0f} -> ¥{equity.iloc[-1]:,.0f})")
     print(f"  简单年化: {total_profit/capital/years*100:.1f}%/年   最大回撤: {-max_dd_pct*100:.1f}%")
-    print(f"  年均交易: {n_total/years:.0f} 次/年（4 个套利对合计）")
+    print(f"  年均交易: {n_total/years:.0f} 次/年（{len(SPREADS)} 个套利对合计）")
 
     try:
         import matplotlib

@@ -26,6 +26,17 @@ SPEC: Dict[str, dict] = {
     "I":  dict(mult=100, tick=0.5, margin=0.12, comm=15.0),
     "M":  dict(mult=10,  tick=1.0, margin=0.09, comm=3.0),
     "RM": dict(mult=10,  tick=1.0, margin=0.08, comm=3.0),
+    "Y":  dict(mult=10,  tick=2.0, margin=0.09, comm=5.0),   # 豆油 DCE
+    "P":  dict(mult=10,  tick=2.0, margin=0.09, comm=5.0),   # 棕榈 DCE
+    "A":  dict(mult=10,  tick=1.0, margin=0.10, comm=4.0),   # 豆一 DCE
+    "B":  dict(mult=10,  tick=1.0, margin=0.10, comm=2.0),   # 豆二 DCE
+    "V":  dict(mult=5,   tick=1.0, margin=0.09, comm=2.0),   # PVC DCE
+    "PP": dict(mult=5,   tick=1.0, margin=0.09, comm=6.0),   # 聚丙烯 DCE
+    "L":  dict(mult=5,   tick=1.0, margin=0.09, comm=6.0),   # 塑料 DCE
+    "CF": dict(mult=5,   tick=5.0, margin=0.07, comm=4.3),   # 棉花 CZCE
+    "CY": dict(mult=5,   tick=5.0, margin=0.07, comm=4.3),   # 棉纱 CZCE
+    "SF": dict(mult=5,   tick=2.0, margin=0.09, comm=6.0),   # 硅铁 CZCE
+    "SM": dict(mult=5,   tick=2.0, margin=0.09, comm=6.0),   # 锰硅 CZCE
 }
 
 

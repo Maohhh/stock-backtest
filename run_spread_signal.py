@@ -17,11 +17,11 @@ from src.indicators.spread_zscore import build_spread, spread_zscore, reversion_
 from src.backtest.spread_money import SpreadSpec, SPEC, _unit_margin_yuan
 
 # 套利对：(名称, 主力代码A, 主力代码B, 单腿品种A, 单腿品种B, 价差模式, 手数A, 手数B)
+# 全部为券商挂牌单一套利标的, 交易所对冲比例 1:1, diff 价差
 PAIRS = [
     ("玉米-淀粉", "C0", "CS0", "C", "CS", "diff", 1, 1),
-    ("螺纹-热卷", "RB0", "HC0", "RB", "HC", "diff", 1, 1),
-    ("铁矿-螺纹", "I0", "RB0", "I", "RB", "ratio", 1, 2),
-    ("豆粕-菜粕", "M0", "RM0", "M", "RM", "ratio", 1, 1),
+    ("PVC-聚丙烯", "V0", "PP0", "V", "PP", "diff", 1, 1),
+    ("棉花-棉纱", "CF0", "CY0", "CF", "CY", "diff", 1, 1),
 ]
 WINDOW, ENTRY, EXIT, STOP = 30, 2.0, 0.5, 4.0
 
