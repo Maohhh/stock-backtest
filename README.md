@@ -16,7 +16,7 @@ A 股历史数据获取、技术指标计算、策略回测和结果可视化框
 > 1. **横截面反转组合**（高年化）：`python run_combined_book.py` —— 见 [`FUTURES_RESULTS.md`](FUTURES_RESULTS.md)。
 > 2. **单标的趋势指标**（可上同花顺主图）：`python run_trend_indicator.py AU0` —— 黄金/铜样本外夏普≈0.85，见 [`THS_主图公式.md`](THS_主图公式.md)。
 > 3. **农产品配对价差回归**（高胜率）：`python run_ag_spread.py` —— 玉米-淀粉胜率≈68%、盈亏比≈1.06、盈利因子≈2.5，见 [`AG_SPREAD_RESULTS.md`](AG_SPREAD_RESULTS.md)。
-> 4. **跨品种套利篮子**（最优，低相关分散）：`python run_spread_basket.py` —— 4 个低相关套利对风险平价组合，年化夏普≈1.56、盈利月占比≈66%；含跨期 vs 跨品种的穷尽对比，见 [`SPREAD_ARB_RESULTS.md`](SPREAD_ARB_RESULTS.md)。
+> 4. **跨品种套利篮子**（最优，低相关分散）：`python run_spread_basket.py` / `python run_spread_money.py` / `python run_spread_signal.py` —— 4 个低相关套利对风险平价组合(优化参数 n30/2σ/0.5σ)，真实资金满额度年化≈24%、回撤≈11%；含跨期 vs 跨品种穷举对比与训练/测试优化，见 [`SPREAD_ARB_RESULTS.md`](SPREAD_ARB_RESULTS.md)。
 
 ## 功能概览
 

@@ -94,8 +94,8 @@ class PairReversionStrategy:
         capital: 用于估算年化收益的占用资金（元，约两腿保证金）
     """
     window: int = 30
-    entry: float = 1.5
-    exit: float = 0.3
+    entry: float = 2.0
+    exit: float = 0.5
     stop: float = 4.0
     mode: str = "diff"
     beta: Optional[float] = None

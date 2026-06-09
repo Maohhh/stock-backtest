@@ -54,7 +54,7 @@ def _unit_margin_yuan(spec: SpreadSpec, pa: float, pb: float) -> float:
             + pb * b["mult"] * spec.lots_b * b["margin"])
 
 
-def backtest_spread_money(spec: SpreadSpec, window=20, entry=1.5, exit=0.3, stop=4.0,
+def backtest_spread_money(spec: SpreadSpec, window=30, entry=2.0, exit=0.5, stop=4.0,
                           data_dir="data/futures_contracts"):
     """
     对一个套利对做真实资金回测（1 个单位）。返回逐笔 ¥ 盈亏(按平仓日) 与统计。

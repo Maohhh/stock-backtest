@@ -103,26 +103,26 @@ Z 回到 ±0.3 内止盈；Z 超 ±4 止损。胜率约 68%、盈亏比约 1.06�
 
 ```
 {===== 跨品种套利 价差Z回归（主图，挂在套利标的上）=====}
-N:=20;
+N:=30;
 MID:MA(CLOSE,N),COLORWHITE;              {价差均值}
 SD:=STD(CLOSE,N);
 
 {开仓 / 止盈 / 止损 价格带（画在价差K线上）}
-开空线:MID+1.5*SD,COLORRED;             {价差升破此线 -> 做空价差}
-开多线:MID-1.5*SD,COLORGREEN;           {价差跌破此线 -> 做多价差}
-止盈上:MID+0.3*SD,COLORGRAY;
-止盈下:MID-0.3*SD,COLORGRAY;
+开空线:MID+2.0*SD,COLORRED;             {价差升破此线 -> 做空价差}
+开多线:MID-2.0*SD,COLORGREEN;           {价差跌破此线 -> 做多价差}
+止盈上:MID+0.5*SD,COLORGRAY;
+止盈下:MID-0.5*SD,COLORGRAY;
 止损上:MID+4*SD,COLOR888888;
 止损下:MID-4*SD,COLOR888888;
 
 {信号箭头}
-DRAWTEXT(CROSS(CLOSE,MID+1.5*SD),CLOSE,'空价差'),COLORRED;
-DRAWTEXT(CROSS(MID-1.5*SD,CLOSE),CLOSE,'多价差'),COLORGREEN;
+DRAWTEXT(CROSS(CLOSE,MID+2.0*SD),CLOSE,'空价差'),COLORRED;
+DRAWTEXT(CROSS(MID-2.0*SD,CLOSE),CLOSE,'多价差'),COLORGREEN;
 DRAWTEXT(CROSS(MID,CLOSE) OR CROSS(CLOSE,MID),MID,'平'),COLORGRAY;
 ```
 
 **看图操作**：
-- 价差（K线）**升破红线** → 做空价差（卖贵的腿、买便宜的腿）；
+- 价差（K线）**升破红线(+2σ)** → 做空价差（卖贵的腿、买便宜的腿）；
 - 价差**跌破绿线** → 做多价差；
 - 价差**回到灰色带(±0.3σ)内** → 止盈平仓；
 - 价差**冲破灰色止损线(±4σ)** → 止损离场。
@@ -130,9 +130,9 @@ DRAWTEXT(CROSS(MID,CLOSE) OR CROSS(CLOSE,MID),MID,'平'),COLORGRAY;
 **副图纯 Z 线版本**（想直接看 Z 数值）：
 
 ```
-N:=20;
+N:=30;
 Z:(CLOSE-MA(CLOSE,N))/STD(CLOSE,N),COLORYELLOW;
-A:1.5,COLORRED;  B:-1.5,COLORGREEN;  C:0.3,COLORGRAY; D:-0.3,COLORGRAY;
+A:2.0,COLORRED;  B:-2.0,COLORGREEN;  C:0.5,COLORGRAY; D:-0.5,COLORGRAY;
 E:4,COLOR888888; F:-4,COLOR888888;
 ```
 
@@ -140,4 +140,4 @@ E:4,COLOR888888; F:-4,COLOR888888;
 1. **确认价差方向**：挂牌套利标的的报价是"腿A−腿B"还是"腿B−腿A"，看一眼即可对应多空方向（做反了把买卖对调）。
 2. **对冲比例**：交易所挂牌套利指令通常是 **1:1**。玉米-淀粉、螺纹-热卷、豆粕-菜粕 都是 1:1，完美匹配；
    铁矿-螺纹经济上需 1:2，挂牌的 1:1 指令会略有偏差，若用 1:1 标的直接看也可，但实盘最好自己按 1:2 两腿下单。
-3. **周期**：回测用日线，建议挂日线图；参数 N=20、±1.5/±0.3/±4 已是 Z 标准化、与品种无关，可直接套用。
+3. **周期**：回测用日线，建议挂日线图；参数 N=30、±2.0/±0.5/±4 已是 Z 标准化、与品种无关，可直接套用。

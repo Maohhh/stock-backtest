@@ -54,10 +54,10 @@ def main():
     print(f"区间 {df.index[0].date()} ~ {df.index[-1].date()} | {len(df)} 天")
     print("=" * 64)
 
-    strat = PairReversionStrategy(window=30, entry=1.5, exit=0.3, stop=4.0,
+    strat = PairReversionStrategy(window=30, entry=2.0, exit=0.5, stop=4.0,
                                   mode=mode, cost_points=8.0)
     full = strat.run(df[a], df[b])
-    print("\n[价差回归 · 默认 n30/entry1.5σ/exit0.3σ/stop4σ]")
+    print("\n[价差回归 · 优化默认 n30/entry2.0σ/exit0.5σ/stop4σ]")
     show(full, "全样本")
     show(strat.run(df.loc[:SPLIT, a], df.loc[:SPLIT, b]), f"训练<{SPLIT}")
     show(strat.run(df.loc[SPLIT:, a], df.loc[SPLIT:, b]), "样本外>=")

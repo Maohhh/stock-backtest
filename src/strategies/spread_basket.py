@@ -16,8 +16,8 @@ import pandas as pd
 from ..indicators.spread_zscore import spread_zscore, reversion_position
 
 
-def backtest_segments(segments: List[pd.Series], window: int = 20, entry: float = 1.5,
-                      exit: float = 0.3, stop: float = 4.0, cost: float = 4.0):
+def backtest_segments(segments: List[pd.Series], window: int = 30, entry: float = 2.0,
+                      exit: float = 0.5, stop: float = 4.0, cost: float = 4.0):
     """
     对一组价差段做 Z 回归回测，返回 (逐笔 PnL Series[按平仓日], 交易统计 dict)。
     """
@@ -71,9 +71,9 @@ class SpreadBasket:
         window/entry/exit/stop/cost: z 回归参数
     """
     legs: Dict[str, List[pd.Series]]
-    window: int = 20
-    entry: float = 1.5
-    exit: float = 0.3
+    window: int = 30
+    entry: float = 2.0
+    exit: float = 0.5
     stop: float = 4.0
     cost: float = 4.0
 

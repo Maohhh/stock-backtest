@@ -23,7 +23,7 @@ PAIRS = [
     ("铁矿-螺纹", "I0", "RB0", "I", "RB", "ratio", 1, 2),
     ("豆粕-菜粕", "M0", "RM0", "M", "RM", "ratio", 1, 1),
 ]
-WINDOW, ENTRY, EXIT, STOP = 20, 1.5, 0.3, 4.0
+WINDOW, ENTRY, EXIT, STOP = 30, 2.0, 0.5, 4.0
 
 
 def latest_close(symbol):
@@ -42,8 +42,8 @@ def action_for(z_now, pos_now):
             return "★ 开仓：做多价差（买B卖A）", f"z={z_now:.2f} < -{ENTRY}"
         return "观望（无信号）", f"|z|={abs(z_now):.2f} < {ENTRY}"
     if pos_now == 1:   # 持多价差
-        return "持有多价差｜止盈 z≥-0.3｜止损 z<-4", f"当前 z={z_now:.2f}"
-    return "持有空价差｜止盈 z≤+0.3｜止损 z>+4", f"当前 z={z_now:.2f}"
+        return f"持有多价差｜止盈 z≥-{EXIT}｜止损 z<-{STOP}", f"当前 z={z_now:.2f}"
+    return f"持有空价差｜止盈 z≤+{EXIT}｜止损 z>+{STOP}", f"当前 z={z_now:.2f}"
 
 
 def main():
