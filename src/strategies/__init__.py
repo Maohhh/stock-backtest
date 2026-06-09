@@ -8,6 +8,7 @@ from .atr_strategy import ATRStrategy
 from .main_force_strategy import MainForceResonanceStrategy
 from .futures_xs_reversal import FuturesXSReversalStrategy
 from .trend_following import TrendFollowingStrategy
+from .spread_reversion import PairReversionStrategy
 
 __all__ = [
     'BaseStrategy',
@@ -21,4 +22,5 @@ __all__ = [
     'MainForceResonanceStrategy',
     'FuturesXSReversalStrategy',
     'TrendFollowingStrategy',
+    'PairReversionStrategy',
 ]

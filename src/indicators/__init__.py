@@ -13,6 +13,7 @@ from .atr import atr
 from .main_force import max_force_resonance, xpct_only
 from .xs_reversal import cross_sectional_reversal, target_weights
 from .trend_ensemble import trend_signal, efficiency_ratio
+from .spread_zscore import build_spread, spread_zscore, reversion_position
 
 __all__ = [
     'sma',
@@ -28,4 +29,7 @@ __all__ = [
     'target_weights',
     'trend_signal',
     'efficiency_ratio',
+    'build_spread',
+    'spread_zscore',
+    'reversion_position',
 ]

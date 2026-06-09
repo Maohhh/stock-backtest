@@ -12,6 +12,11 @@ A 股历史数据获取、技术指标计算、策略回测和结果可视化框
 > 代码：`src/data/futures.py`、`src/indicators/xs_reversal.py`、
 > `src/strategies/futures_xs_reversal.py`、`src/backtest/futures_engine.py`。
 
+> **期货策略三件套（按需求选用）**：
+> 1. **横截面反转组合**（高年化）：`python run_combined_book.py` —— 见 [`FUTURES_RESULTS.md`](FUTURES_RESULTS.md)。
+> 2. **单标的趋势指标**（可上同花顺主图）：`python run_trend_indicator.py AU0` —— 黄金/铜样本外夏普≈0.85，见 [`THS_主图公式.md`](THS_主图公式.md)。
+> 3. **农产品配对价差回归**（高胜率）：`python run_ag_spread.py` —— 玉米-淀粉胜率≈68%、盈亏比≈1.06、盈利因子≈2.5，见 [`AG_SPREAD_RESULTS.md`](AG_SPREAD_RESULTS.md)。
+
 ## 功能概览
 
 - 数据获取：支持 Baostock、AkShare、Sina，`auto` 模式优先使用 Baostock，失败后自动 fallback。
