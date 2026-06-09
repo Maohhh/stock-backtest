@@ -102,51 +102,55 @@ Z 回到 ±0.3 内止盈；Z 超 ±4 止损。胜率约 68%、盈亏比约 1.06�
 纯单标的、可直接做主图指标。把套利标的（如玉米淀粉套利、螺纹热卷套利）的图拉出来，套用本指标。
 
 ```
-{===== 跨品种套利 价差Z回归 · 持仓状态版（主图，挂在套利标的上）=====}
+{===== 跨品种套利 价差Z回归 · 持仓状态版（主图）配色已调亮 =====}
 N:=30;
-MID:MA(CLOSE,N),COLORWHITE;              {价差均值}
+MID:MA(CLOSE,N),COLORYELLOW;             {均值线·黄}
 SD:=STD(CLOSE,N);
-Z:=(CLOSE-MID)/SD;                       {Z 分数}
+Z:=(CLOSE-MID)/SD;
 
-{价格带}
-开空线:MID+2*SD,COLORRED;
-开多线:MID-2*SD,COLORGREEN;
-止盈上:MID+0.5*SD,COLORGRAY;
-止盈下:MID-0.5*SD,COLORGRAY;
-止损上:MID+4*SD,COLOR888888;
-止损下:MID-4*SD,COLOR888888;
+{价格带 — 全亮色}
+开空线:MID+2*SD,COLORRED,LINETHICK2;     {+2σ 开空·红}
+开多线:MID-2*SD,COLORGREEN,LINETHICK2;   {-2σ 开多·绿}
+止盈上:MID+0.5*SD,COLORCYAN;             {止盈带·青}
+止盈下:MID-0.5*SD,COLORCYAN;
+止损上:MID+4*SD,COLORMAGENTA;           {止损带·品红}
+止损下:MID-4*SD,COLORMAGENTA;
 
 {原始穿带信号}
-开空RAW:=CROSS(Z,2);                                       {Z 上穿 +2σ}
-开多RAW:=CROSS(-2,Z);                                      {Z 下穿 -2σ}
-平仓RAW:=CROSS(0.5,Z) OR CROSS(Z,-0.5) OR CROSS(Z,4) OR CROSS(-4,Z);  {回到±0.5σ止盈/触±4σ止损}
+开空RAW:=CROSS(Z,2);
+开多RAW:=CROSS(-2,Z);
+平仓RAW:=CROSS(0.5,Z) OR CROSS(Z,-0.5) OR CROSS(Z,4) OR CROSS(-4,Z);
 
-{持仓状态机: 距上次开仓 < 距上次平仓 = 仍持仓; 方向取最近一次开仓}
+{持仓状态机: 距上次开仓 < 距上次平仓 = 仍持仓}
 持仓:=BARSLAST(开空RAW OR 开多RAW)<BARSLAST(平仓RAW);
 方向:=IF(BARSLAST(开空RAW)<BARSLAST(开多RAW),-1,1);
 持空:=持仓 AND 方向<0;
 持多:=持仓 AND 方向>0;
 
-{真实开/平 = 状态切换那一根(持仓中重复穿带不再标记)}
+{真实开/平 = 状态切换那一根}
 真开空:=持空 AND REF(持空,1)=0;
 真开多:=持多 AND REF(持多,1)=0;
 真平仓:=REF(持仓,1)=1 AND 持仓=0;
 
-{箭头(指向对应K线) + 文字}
-DRAWICON(真开空,HIGH*1.008,2);              {做空: K线上方·向下箭头(图标号视版本,2/22常为下箭头)}
-DRAWTEXT(真开空,HIGH*1.020,'↓做空价差'),COLORRED;
-DRAWICON(真开多,LOW*0.992,1);               {做多: K线下方·向上箭头(1/21常为上箭头)}
-DRAWTEXT(真开多,LOW*0.970,'↑做多价差'),COLORGREEN;
-DRAWTEXT(真平仓,MID,'●平仓'),COLORGRAY;
+{开仓箭头(指向K线)+亮色文字}
+DRAWICON(真开空,HIGH*1.008,2);                          {做空·下箭头}
+DRAWTEXT(真开空,HIGH*1.022,'↓做空价差'),COLORRED;
+DRAWICON(真开多,LOW*0.992,1);                           {做多·上箭头}
+DRAWTEXT(真开多,LOW*0.965,'↑做多价差'),COLORGREEN;
+DRAWTEXT(真平仓,MID,'●平仓'),COLORYELLOW;               {平仓·黄(不再用灰)}
 
-{持仓期间高亮: 在带上画线段, 一眼看出持仓时段}
-持空高亮:IF(持空,MID+2*SD,DRAWNULL),COLORRED,LINETHICK2;
-持多高亮:IF(持多,MID-2*SD,DRAWNULL),COLORGREEN,LINETHICK2;
+{持仓期间在带上高亮加粗}
+持空高亮:IF(持空,MID+2*SD,DRAWNULL),COLORRED,LINETHICK3;
+持多高亮:IF(持多,MID-2*SD,DRAWNULL),COLORGREEN,LINETHICK3;
 
-{趋势预警: 价差单边趋势时(ER>0.5)染黄背景, 此时少抄底/摸顶}
+{趋势预警: ER>0.5 顶部画亮黄竖条(原暗色背景看不清,改成亮条)}
 ER:=ABS(CLOSE-REF(CLOSE,10))/SUM(ABS(CLOSE-REF(CLOSE,1)),10);
-STICKLINE(ER>0.5,MID+4*SD,MID-4*SD,8,1),COLOR222200;
+STICKLINE(ER>0.5,MID+4*SD,MID+3.6*SD,4,0),COLORYELLOW;
 ```
+
+> 配色说明：上式按**黑色盘面背景**配的亮色（黄/红/绿/青/品红），已不用灰/白/暗色。
+> 若你用的是**白色背景**，把 `COLORYELLOW`→`COLORBROWN`、`COLORCYAN`→`COLORBLUE` 即可。
+> 嫌带线太多看花眼，可把 `止盈上/止盈下/止损上/止损下` 四行删掉，只留开空线/开多线/箭头。
 
 **看图操作**：
 - 价差（K线）**升破红线(+2σ)** → 做空价差（卖贵的腿、买便宜的腿）；
