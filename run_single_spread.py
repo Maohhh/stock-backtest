@@ -58,7 +58,21 @@ def main():
     units, pnl, eq, ann, ddp = best
     print(f"\n推荐(满保证金~1x): {units} 手, 年化≈{ann*100:.0f}%, 最大回撤≈{-ddp*100:.0f}%, "
           f"年均 {st['n_trades']/yrs:.0f} 笔")
-    print("⚠️ 单标的无分散, 历史低回撤不保证未来; 关系结构性断裂会放大亏损。")
+
+    # 逐年收益表（1x）
+    print(f"\n[逐年明细 · {units}手/1x]")
+    print(f"{'年份':<6}{'笔数':>5}{'胜率':>6}{'盈利(元)':>11}{'年内最大回撤':>13}")
+    yearly = []
+    for yr, g in pnl.groupby(pnl.index.year):
+        c = g.cumsum()
+        dd = (c - c.cummax()).min()
+        print(f"{yr:<6}{len(g):>5}{(g>0).mean()*100:>5.0f}%{g.sum():>11,.0f}{-dd:>13,.0f}")
+        yearly.append(g.sum())
+    yr_arr = np.array(yearly)
+    print(f"  盈利年 {(yr_arr>0).sum()}/{len(yr_arr)} | 年均 ¥{yr_arr.mean():,.0f} | "
+          f"最差年 ¥{yr_arr.min():,.0f} | 最好年 ¥{yr_arr.max():,.0f}")
+
+    print("\n⚠️ 单标的无分散, 历史低回撤不保证未来; 关系结构性断裂会放大亏损。")
     print("   务必: 杠杆从 1x 起步、守 4σ 止损、账户回撤 20% 熔断。")
 
     try:
