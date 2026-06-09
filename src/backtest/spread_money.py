@@ -13,7 +13,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 import pandas as pd
 
-from ..indicators.spread_zscore import spread_zscore, reversion_position
+from ..indicators.spread_zscore import spread_zscore, reversion_position, efficiency_ratio
 from ..data.contracts import list_contracts, _load
 
 
@@ -66,7 +66,7 @@ def _unit_margin_yuan(spec: SpreadSpec, pa: float, pb: float) -> float:
 
 
 def backtest_spread_money(spec: SpreadSpec, window=30, entry=2.0, exit=0.5, stop=4.0,
-                          data_dir="data/futures_contracts"):
+                          er_n=10, er_max=None, data_dir="data/futures_contracts"):
     """
     对一个套利对做真实资金回测（1 个单位）。返回逐笔 ¥ 盈亏(按平仓日) 与统计。
     """
@@ -93,7 +93,8 @@ def backtest_spread_money(spec: SpreadSpec, window=30, entry=2.0, exit=0.5, stop
         else:
             sp = df["b"] - df["a"]
         z = spread_zscore(sp, window)
-        pos = reversion_position(z, entry, exit, stop)
+        er = efficiency_ratio(sp, er_n)
+        pos = reversion_position(z, entry, exit, stop, er=er, er_max=er_max)
         prev, ea, eb = 0, None, None
         for i in range(len(pos)):
             cur = pos.iloc[i]

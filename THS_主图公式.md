@@ -120,6 +120,11 @@ DRAWTEXT(CROSS(CLOSE,MID+2.0*SD),CLOSE,'空价差'),COLORRED;     {升破+2σ:�
 DRAWTEXT(CROSS(MID-2.0*SD,CLOSE),CLOSE,'多价差'),COLORGREEN;   {跌破-2σ:做多价差}
 DRAWTEXT(CROSS(MID+0.5*SD,CLOSE),MID,'平空'),COLORGRAY;        {回到+0.5σ:平空止盈}
 DRAWTEXT(CROSS(CLOSE,MID-0.5*SD),MID,'平多'),COLORGRAY;        {回到-0.5σ:平多止盈}
+
+{趋势预警: 价差处于单边趋势时(效率系数ER>0.5)染黄背景, 此时少抄底/摸顶}
+ER:=ABS(CLOSE-REF(CLOSE,10))/SUM(ABS(CLOSE-REF(CLOSE,1)),10);
+BACKSET(ER>0.5,0);
+STICKLINE(ER>0.5,MID+4*SD,MID-4*SD,8,1),COLOR222200;
 ```
 
 **看图操作**：
@@ -127,6 +132,8 @@ DRAWTEXT(CROSS(CLOSE,MID-0.5*SD),MID,'平多'),COLORGRAY;        {回到-0.5σ:�
 - 价差**跌破绿线** → 做多价差；
 - 价差**回到灰色带(±0.5σ)内** → 止盈平仓；
 - 价差**冲破灰色止损线(±4σ)** → 止损离场。
+- **黄色背景 = 价差在单边趋势中**（效率系数 ER>0.5）：此时回归信号可靠性低，
+  **少抄底/摸顶**，等价差走稳（黄背景消失）再做。这是为了解决"趋势行情里逆势开仓被套"的问题。
 
 **副图纯 Z 线版本**（想直接看 Z 数值）：
 
