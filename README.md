@@ -366,6 +366,30 @@ pytest
 python -m unittest tests/test_indicators.py
 ```
 
+## 期货价差套利回测
+
+除股票回测外，`src/arbitrage/` 提供期货跨期 / 跨品种价差的均值回归套利回测，
+日线数据来自新浪期货接口（`src/arbitrage/sina_futures.py`，支持已交割历史合约
+和主力连续合约，本地 CSV 缓存于 `data/futures/`）。
+
+```bash
+python run_arbitrage_backtest.py
+```
+
+内置品种与规则（均值回归，跨期价差在近月交割月前强制平仓，"交割月不计入"）：
+
+| 品种 | 价差 | 进场 | 出场 |
+| --- | --- | --- | --- |
+| 菜粕 9-11 | RM09−RM11 | < 50 做多 | 回归到本周期均值 |
+| 鸡蛋 9-10 | JD09−JD10 | < 100 做多 | 回归到本周期均值 |
+| 花生 3-4 | PK03−PK04 | > 70 做空 / < −70 做多 | 回归到 0 |
+| PTA/短纤 | TA−PF 主力连续 | > −1400 做空 | 回归到滚动均值中枢 |
+| 玉米/玉米淀粉 | C−CS 主力连续 | > −300 做空 | 回归到滚动均值中枢 |
+
+回测输出每个品种的交易数、胜率、累计价差点数、最大回撤等，交易明细与权益曲线图
+保存在 `data/arbitrage_results/`。核心回测逻辑见 `src/arbitrage/spread_backtest.py`，
+可复用于其它价差组合。
+
 ## 许可证
 
 MIT
