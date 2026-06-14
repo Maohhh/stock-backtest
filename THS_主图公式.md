@@ -132,11 +132,11 @@ Z:=(CLOSE-MID)/SD;
 真开多:=持多 AND REF(持多,1)=0;
 真平仓:=REF(持仓,1)=1 AND 持仓=0;
 
-{开仓箭头(指向K线)+亮色文字}
-DRAWICON(真开空,HIGH*1.008,2);                          {做空·下箭头}
-DRAWTEXT(真开空,HIGH*1.022,'↓做空价差'),COLORRED;
-DRAWICON(真开多,LOW*0.992,1);                           {做多·上箭头}
-DRAWTEXT(真开多,LOW*0.965,'↑做多价差'),COLORGREEN;
+{开仓箭头(指向K线)+亮色文字 — 用加减SD定位, 兼容负数价差(乘法会把负数标反)}
+DRAWICON(真开空,HIGH+0.3*SD,2);                          {做空·下箭头}
+DRAWTEXT(真开空,HIGH+0.7*SD,'↓做空价差'),COLORRED;
+DRAWICON(真开多,LOW-0.3*SD,1);                           {做多·上箭头}
+DRAWTEXT(真开多,LOW-0.7*SD,'↑做多价差'),COLORGREEN;
 DRAWTEXT(真平仓,MID,'●平仓'),COLORYELLOW;               {平仓·黄(不再用灰)}
 
 {持仓期间在带上高亮加粗}
