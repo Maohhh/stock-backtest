@@ -82,6 +82,25 @@ def main():
     print(f"  简单年化: {total_profit/capital/years*100:.1f}%/年   最大回撤: {-max_dd_pct*100:.1f}%")
     print(f"  年均交易: {n_total/years:.0f} 次/年（{len(SPREADS)} 个套利对合计）")
 
+    # 复利对比(50%额度): 赚了按新权益加手数, 拉高CAGR(代价是回撤变大)
+    def compound_equity(util):
+        eq = capital
+        u = {s.name: max(1, int(capital / len(SPREADS) * util / stats[s.name]["unit_margin"]))
+             for s in SPREADS}
+        out = []
+        for dt, row in daily.iterrows():
+            eq += sum(row[n] * u[n] for n in daily.columns)
+            out.append((dt, eq))
+            alloc = eq / len(SPREADS)
+            u = {s.name: max(1, int(alloc * util / stats[s.name]["unit_margin"])) for s in SPREADS}
+        e = pd.Series(dict(out))
+        return e, ((e - e.cummax()) / e.cummax()).min()
+    for ut in [0.5, 1.0]:
+        _, fdd = equity_for(ut)[1], equity_for(ut)[3]
+        ce, cdd = compound_equity(ut)
+        ccagr = (ce.iloc[-1] / capital) ** (1 / years) - 1
+        print(f"  [复利·{ut*100:.0f}%额度] 期末¥{ce.iloc[-1]:,.0f}  CAGR={ccagr*100:.1f}%  最大回撤={-cdd*100:.0f}%")
+
     try:
         import matplotlib
         matplotlib.use("Agg")
