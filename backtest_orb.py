@@ -124,6 +124,7 @@ def simulate(df, sig, cost_side, trail_atr=0.0):
         "expectancy_R": r.mean(),
         "total_R": r.sum(),
         "max_dd_R": max_dd,
+        "r_series": r,
     }
 
 
