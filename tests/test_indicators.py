@@ -11,7 +11,8 @@ from pathlib import Path
 # 添加src到路径
 sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
-from indicators import sma, ema, macd, rsi, bollinger_bands, kdj, atr, intraday_reversion
+from indicators import (sma, ema, macd, rsi, bollinger_bands, kdj, atr,
+                        intraday_reversion, opening_range_breakout)
 
 
 class TestIndicators(unittest.TestCase):
@@ -235,6 +236,63 @@ class TestIntradayReversion(unittest.TestCase):
     def test_missing_columns_raise(self):
         with self.assertRaises(ValueError):
             intraday_reversion(pd.DataFrame({'close': [1, 2, 3]}))
+
+
+class TestOpeningRangeBreakout(unittest.TestCase):
+    """开盘区间突破指标测试"""
+
+    def setUp(self):
+        np.random.seed(11)
+        n = 600
+        prices = [3000.0]
+        for _ in range(1, n):
+            prices.append(max(prices[-1] + np.random.normal(0, 8), 1))
+        # 制造多个会话(每~40根插入一个>240min的跳空)
+        ts = []
+        t = pd.Timestamp('2024-01-02 09:15')
+        for k in range(n):
+            ts.append(t)
+            t = t + (pd.Timedelta(hours=6) if (k + 1) % 40 == 0 else pd.Timedelta(minutes=15))
+        self.df = pd.DataFrame({
+            'datetime': ts,
+            'open': prices,
+            'high': [p + abs(np.random.normal(4, 1)) for p in prices],
+            'low': [p - abs(np.random.normal(4, 1)) for p in prices],
+            'close': prices,
+            'volume': np.random.randint(1000, 80000, n),
+        })
+
+    def test_output_shape_and_columns(self):
+        res = opening_range_breakout(self.df)
+        self.assertEqual(len(res), len(self.df))
+        for col in ['session', 'vwap', 'atr', 'or_high', 'or_low', 'rvol',
+                    'long_signal', 'short_signal', 'signal', 'stop_long', 'stop_short']:
+            self.assertIn(col, res.columns)
+
+    def test_signal_domain_and_exclusivity(self):
+        res = opening_range_breakout(self.df)
+        self.assertTrue(set(res['signal'].unique()).issubset({-1, 0, 1}))
+        self.assertFalse((res['long_signal'] & res['short_signal']).any())
+
+    def test_one_per_session(self):
+        res = opening_range_breakout(self.df, one_per_session=True)
+        per_sess_long = res.groupby('session')['long_signal'].sum()
+        per_sess_short = res.groupby('session')['short_signal'].sum()
+        self.assertTrue((per_sess_long <= 1).all())
+        self.assertTrue((per_sess_short <= 1).all())
+
+    def test_no_lookahead(self):
+        full = opening_range_breakout(self.df)
+        cut = len(self.df) // 2
+        partial = opening_range_breakout(self.df.iloc[:cut].copy())
+        warm = 60
+        a = full['signal'].iloc[warm:cut].reset_index(drop=True)
+        b = partial['signal'].iloc[warm:cut].reset_index(drop=True)
+        pd.testing.assert_series_equal(a, b, check_names=False)
+
+    def test_missing_columns_raise(self):
+        with self.assertRaises(ValueError):
+            opening_range_breakout(pd.DataFrame({'close': [1, 2, 3]}))
 
 
 if __name__ == '__main__':

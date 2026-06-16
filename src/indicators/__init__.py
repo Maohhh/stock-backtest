@@ -12,6 +12,7 @@ from .kdj import kdj
 from .atr import atr
 from .main_force import max_force_resonance, xpct_only
 from .intraday_reversion import intraday_reversion
+from .opening_range_breakout import opening_range_breakout
 
 __all__ = [
     'sma',
@@ -24,4 +25,5 @@ __all__ = [
     'max_force_resonance',
     'xpct_only',
     'intraday_reversion',
+    'opening_range_breakout',
 ]

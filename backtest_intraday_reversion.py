@@ -20,23 +20,10 @@ import numpy as np
 import pandas as pd
 
 from src.indicators.intraday_reversion import intraday_reversion
+from src.utils.contract_specs import PRODUCT_SPEC, cost_per_side, roundtrip_yuan
 
 DATA_DIR = Path("data_futures/weighted_15min")
 
-# 品种合约规格: tick=最小变动价(价格单位), mult=合约乘数(吨/手等),
-# comm_rt=往返手续费(元/手, 近似值)。期货成本必须按"手续费+滑点(以tick计)"算,
-# 而不是按价格基点 —— 玉米这类低价高乘数品种, 价格基点会严重高估成本。
-PRODUCT_SPEC = {
-    "C":  dict(name="玉米",   sector="农产品",     tick=1.0,  mult=10,   comm_rt=2.4),
-    "CS": dict(name="淀粉",   sector="农产品",     tick=1.0,  mult=10,   comm_rt=3.0),
-    "RB": dict(name="螺纹钢", sector="黑色/工业品", tick=1.0,  mult=10,   comm_rt=4.0),
-    "HC": dict(name="热卷",   sector="黑色/工业品", tick=1.0,  mult=10,   comm_rt=4.0),
-    "M":  dict(name="豆粕",   sector="农产品",     tick=1.0,  mult=10,   comm_rt=3.0),
-    "CU": dict(name="沪铜",   sector="有色",       tick=10.0, mult=5,    comm_rt=13.0),
-    "AU": dict(name="沪金",   sector="贵金属",     tick=0.02, mult=1000, comm_rt=20.0),
-    "TA": dict(name="PTA",   sector="能化",       tick=2.0,  mult=5,    comm_rt=6.0),
-    "IF": dict(name="沪深300", sector="股指",      tick=0.2,  mult=300,  comm_rt=26.0),
-}
 DEFAULT_PRODUCTS = ["C", "CS", "RB", "M", "CU", "AU", "TA", "IF"]
 
 
@@ -162,9 +149,9 @@ def main():
             print(f"{p:<6}(无数据或无合约规格, 跳过)")
             continue
         df = pd.read_parquet(fp).reset_index(drop=True)
-        # 单边成本(价格单位) = 手续费每边/乘数 + 滑点tick数*tick
-        cost_side = (spec['comm_rt'] / 2.0) / spec['mult'] + args.slippage_ticks * spec['tick']
-        rt_yuan = cost_side * 2.0 * spec['mult']  # 往返成本(元/手), 用于展示
+        # 单边成本(价格单位) = 手续费每边/乘数 + 滑点tick数*tick (共享自 contract_specs)
+        cost_side = cost_per_side(p, args.slippage_ticks)
+        rt_yuan = roundtrip_yuan(p, args.slippage_ticks)  # 往返成本(元/手), 用于展示
         sig = intraday_reversion(df, stretch_thr=args.stretch_thr, trend_align=trend_align)
         res = simulate(df, sig, cost_side=cost_side, max_hold=args.max_hold,
                        tp_atr=args.tp_atr, sl_atr=args.sl_atr)
