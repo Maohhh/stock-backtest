@@ -13,48 +13,48 @@ RR:2;      {止盈为风险的几倍(R), 默认2}
 {—— 1. 会话划分: 日盘按日期换天, 夜盘按21点开盘 ——}
 { 注: 适用 21:00 开夜盘且不跨午夜的品种(玉米/豆粕/螺纹等)。}
 { 金/银/原油等夜盘到次日凌晨的, 请删掉 OR 后面那段(见下行注释)。}
-NEWS:=DATE<>REF(DATE,1) OR (TIME>=210000 AND REF(TIME,1)<210000);
-BN:=BARSLAST(NEWS);          {会话内K线序号, 从0开始}
-ORB:=ORM/KM;                 {开盘区间K线根数}
-INOR:=BN<ORB;                {属于开盘区间的K线}
+新会话:=DATE<>REF(DATE,1) OR (TIME>=210000 AND REF(TIME,1)<210000);
+BN:=BARSLAST(新会话);        {会话内K线序号, 从0开始}
+区间根数:=ORM/KM;            {开盘区间K线根数}
+属于区间:=BN<区间根数;        {属于开盘区间的K线}
 
 {—— 2. 开盘区间高/低 (开盘窗口内动态, 出窗口后锁定不变) ——}
-DH:=HHV(HIGH,BN+1);
-DL:=LLV(LOW,BN+1);
-ORH:=IF(INOR,DH,VALUEWHEN(BN=ORB-1,DH));
-ORL:=IF(INOR,DL,VALUEWHEN(BN=ORB-1,DL));
+段高:=HHV(HIGH,BN+1);
+段低:=LLV(LOW,BN+1);
+ORH:=IF(属于区间,段高,VALUEWHEN(BN=区间根数-1,段高));
+ORL:=IF(属于区间,段低,VALUEWHEN(BN=区间根数-1,段低));
 
 {—— 3. 当日VWAP(累计量加权均价) 与 相对成交量 ——}
-TP:=(HIGH+LOW+CLOSE)/3;
-VWAP:=SUM(TP*VOL,BN+1)/SUM(VOL,BN+1);
-RVOL:=VOL/MA(VOL,20);
+典型价:=(HIGH+LOW+CLOSE)/3;
+均价:=SUM(典型价*VOL,BN+1)/SUM(VOL,BN+1);
+相对量:=VOL/MA(VOL,20);
 
 {—— 4. 突破信号 (收盘确认, 不重绘) ——}
-ACT:=BN>=ORB;
-LCOND:=ACT AND CLOSE>ORH AND CLOSE>VWAP AND RVOL>=RV;   {放量+站上VWAP+破上沿}
-SCOND:=ACT AND CLOSE<ORL AND CLOSE<VWAP AND RVOL>=RV;
-LONG:=LCOND AND SUM(LCOND,BN+1)=1;     {每会话每方向只取首次}
-SHORT:=SCOND AND SUM(SCOND,BN+1)=1;
+可突破:=BN>=区间根数;
+多条件:=可突破 AND CLOSE>ORH AND CLOSE>均价 AND 相对量>=RV;   {放量+站上均价+破上沿}
+空条件:=可突破 AND CLOSE<ORL AND CLOSE<均价 AND 相对量>=RV;
+多信号:=多条件 AND SUM(多条件,BN+1)=1;     {每会话每方向只取首次}
+空信号:=空条件 AND SUM(空条件,BN+1)=1;
 
 {—— 5. 画开盘区间与VWAP ——}
 开盘上沿:ORH,COLORYELLOW;
 开盘下沿:ORL,COLORYELLOW;
-VWAP:VWAP,COLORWHITE;
+VWAP:均价,COLORWHITE;
 
 {—— 6. 买卖点箭头与文字 (红多绿空) ——}
-DRAWICON(LONG,LOW*0.999,1);
-DRAWTEXT(LONG,LOW*0.997,'多'),COLORRED;
-DRAWICON(SHORT,HIGH*1.001,2);
-DRAWTEXT(SHORT,HIGH*1.003,'空'),COLORGREEN;
+DRAWICON(多信号,LOW*0.999,1);
+DRAWTEXT(多信号,LOW*0.997,'多'),COLORRED;
+DRAWICON(空信号,HIGH*1.001,2);
+DRAWTEXT(空信号,HIGH*1.003,'空'),COLORGREEN;
 
 {—— 7. 止损/止盈线 (信号后, 本会话内显示) ——}
-多在场:=BARSLAST(LONG)<=BN;
-空在场:=BARSLAST(SHORT)<=BN;
-多进:=VALUEWHEN(LONG,CLOSE);    {进场≈信号那根收盘; 实盘次根开盘进更准}
-多损:=VALUEWHEN(LONG,ORL);      {多单止损=开盘区间下沿}
+多在场:=BARSLAST(多信号)<=BN;
+空在场:=BARSLAST(空信号)<=BN;
+多进:=VALUEWHEN(多信号,CLOSE);  {进场≈信号那根收盘; 实盘次根开盘进更准}
+多损:=VALUEWHEN(多信号,ORL);    {多单止损=开盘区间下沿}
 多盈:=多进+RR*(多进-多损);       {多单止盈=进场+RR倍风险}
-空进:=VALUEWHEN(SHORT,CLOSE);
-空损:=VALUEWHEN(SHORT,ORH);     {空单止损=开盘区间上沿}
+空进:=VALUEWHEN(空信号,CLOSE);
+空损:=VALUEWHEN(空信号,ORH);    {空单止损=开盘区间上沿}
 空盈:=空进-RR*(空损-空进);
 
 多止损:IF(多在场,多损,DRAWNULL),COLORGRAY;
@@ -67,8 +67,8 @@ DRAWTEXT(SHORT,HIGH*1.003,'空'),COLORGREEN;
  1) 信号在K线"收盘"确认后出现, 不会重绘; 实盘下一根开盘进场最接近回测。
  2) 不同品种开盘时间不同: 股指09:30开盘、当前无夜盘; 国债09:15; 商品09:00+夜盘。
     本公式日盘用"日期换天"自动识别, 通用; 夜盘按21:00。
-    金/银/原油等夜盘跨午夜的品种, 把第1段 NEWS 里 OR 之后的整段删掉,
-    即 NEWS:=DATE<>REF(DATE,1);  避免午夜误重置。
+    金/银/原油等夜盘跨午夜的品种, 把第1段"新会话"里 OR 之后的整段删掉,
+    即 新会话:=DATE<>REF(DATE,1);  避免午夜误重置。
  3) 想要开盘到收盘只做一笔, 已用 SUM(...)=1 限制每会话每方向首次。
- 4) 可在同花顺"预警"里对 LONG / SHORT 设条件预警, 出信号时弹窗/响铃。
+ 4) 可在同花顺"预警"里对 多信号 / 空信号 设条件预警, 出信号时弹窗/响铃。
 ============================================================}
