@@ -11,7 +11,7 @@ from pathlib import Path
 # 添加src到路径
 sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
-from indicators import sma, ema, macd, rsi, bollinger_bands, kdj, atr
+from indicators import sma, ema, macd, rsi, bollinger_bands, kdj, atr, intraday_reversion
 
 
 class TestIndicators(unittest.TestCase):
@@ -186,6 +186,55 @@ class TestIndicators(unittest.TestCase):
         sma_10_mad = (sma_10 - sma_10.mean()).abs().mean()
         sma_30_mad = (sma_30 - sma_30.mean()).abs().mean()
         self.assertGreater(sma_10_mad, sma_30_mad * 0.5)  # 允许一定容差
+
+
+class TestIntradayReversion(unittest.TestCase):
+    """日内均值回归指标测试"""
+
+    def setUp(self):
+        np.random.seed(7)
+        n = 500
+        prices = [3000.0]
+        for _ in range(1, n):
+            prices.append(max(prices[-1] + np.random.normal(0, 6), 1))
+        ts = pd.date_range('2024-01-02 09:15', periods=n, freq='15min')
+        self.df = pd.DataFrame({
+            'datetime': ts,
+            'open': prices,
+            'high': [p + abs(np.random.normal(3, 1)) for p in prices],
+            'low': [p - abs(np.random.normal(3, 1)) for p in prices],
+            'close': prices,
+            'volume': np.random.randint(1000, 50000, n),
+        })
+
+    def test_output_shape_and_columns(self):
+        res = intraday_reversion(self.df)
+        self.assertEqual(len(res), len(self.df))
+        for col in ['vwap', 'atr', 'stretch', 'er', 'trend_dir',
+                    'long_signal', 'short_signal', 'signal',
+                    'stop_long', 'target_long', 'stop_short', 'target_short']:
+            self.assertIn(col, res.columns)
+
+    def test_signal_domain(self):
+        res = intraday_reversion(self.df)
+        self.assertTrue(set(res['signal'].unique()).issubset({-1, 0, 1}))
+        # 多空信号互斥
+        self.assertFalse((res['long_signal'] & res['short_signal']).any())
+
+    def test_no_lookahead(self):
+        """截断后半段数据不应改变前半段已生成的信号 (无未来函数)。"""
+        full = intraday_reversion(self.df)
+        cut = len(self.df) // 2
+        partial = intraday_reversion(self.df.iloc[:cut].copy())
+        # 留出 trend_period 暖机, 比较稳定区间的信号是否一致
+        warm = 120
+        a = full['signal'].iloc[warm:cut].reset_index(drop=True)
+        b = partial['signal'].iloc[warm:cut].reset_index(drop=True)
+        pd.testing.assert_series_equal(a, b, check_names=False)
+
+    def test_missing_columns_raise(self):
+        with self.assertRaises(ValueError):
+            intraday_reversion(pd.DataFrame({'close': [1, 2, 3]}))
 
 
 if __name__ == '__main__':

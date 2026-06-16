@@ -11,10 +11,11 @@ from .bollinger import bollinger_bands
 from .kdj import kdj
 from .atr import atr
 from .main_force import max_force_resonance, xpct_only
+from .intraday_reversion import intraday_reversion
 
 __all__ = [
     'sma',
-    'ema', 
+    'ema',
     'macd',
     'rsi',
     'bollinger_bands',
@@ -22,4 +23,5 @@ __all__ = [
     'atr',
     'max_force_resonance',
     'xpct_only',
+    'intraday_reversion',
 ]
