@@ -361,6 +361,16 @@ python lon_macd_backtest.py --no-plot    # 跳过画图
 
 回测产物输出到 `lon_macd_results/`：`REPORT.md`（汇总报告）、`summary.csv`、`trades.csv` 和净值图。
 
+进阶分析脚本：
+
+```bash
+python lon_macd_sensitivity.py   # 参数敏感性：MA周期/离场根数/双线过0轴/反手 -> SENSITIVITY.md + 热力图
+python lon_macd_portfolio.py     # 品种筛选与组合：全等权 vs 事后最优(有偏) vs 滚动筛选(无偏) -> PORTFOLIO.md
+```
+
+要点：短均线（MA10）整体优于 MA20；要求 MACD 双线过 0 轴的过滤是有价值的；等权一篮子分散后
+组合回撤从单品种的 40%+ 降到 ~13%；滚动筛选趋势品种（CU/RU/TA/CF 等）有温和但真实的增量。
+
 ## 数据格式约定
 
 回测和指标默认使用日线数据：
