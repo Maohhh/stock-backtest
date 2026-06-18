@@ -2,6 +2,10 @@
 
 A 股历史数据获取、技术指标计算、策略回测和结果可视化框架。
 
+> 📈 **新增：商品期货多周期 “看大做小” 回测子系统** —— 用国内 36 个主力连续合约、
+> 最长 21 年日线数据，系统验证 “看大周期做小周期” 能否提高年化。详见 **[FUTURES.md](FUTURES.md)**。
+> 一键运行：`PYTHONPATH=. python scripts/run_futures_mtf.py`。
+
 ## 功能概览
 
 - 数据获取：支持 Baostock、AkShare、Sina，`auto` 模式优先使用 Baostock，失败后自动 fallback。
