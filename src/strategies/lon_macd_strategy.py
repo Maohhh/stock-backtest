@@ -35,6 +35,7 @@ def generate_signals(
     lon_slow: int = 20,
     warmup: int = 60,
     allow_reverse: bool = True,
+    require_zero_axis: bool = True,
 ) -> pd.DataFrame:
     """
     计算指标并生成多空状态序列。
@@ -47,6 +48,7 @@ def generate_signals(
         lon_*: LON 参数
         warmup: 预热 K 线数，之前不开仓（指标尚未稳定）
         allow_reverse: 离场当根若出现反向开仓信号，是否直接反手
+        require_zero_axis: 是否要求 MACD 双线（DIF/DEA）都在 0 轴对应一侧
 
     返回:
         在原 df 基础上追加 dif/dea/ma/lon/state 等列的新 DataFrame
@@ -68,8 +70,13 @@ def generate_signals(
     golden_cross = (dif > dea) & (prev_dif <= prev_dea)
     death_cross = (dif < dea) & (prev_dif >= prev_dea)
 
-    long_entry = (data["lon"] > 0) & golden_cross & (dif > 0) & (dea > 0)
-    short_entry = (data["lon"] < 0) & death_cross & (dif < 0) & (dea < 0)
+    if require_zero_axis:
+        long_entry = (data["lon"] > 0) & golden_cross & (dif > 0) & (dea > 0)
+        short_entry = (data["lon"] < 0) & death_cross & (dif < 0) & (dea < 0)
+    else:
+        # 仅靠 LON 定方向 + MACD 交叉，不要求双线过 0 轴
+        long_entry = (data["lon"] > 0) & golden_cross
+        short_entry = (data["lon"] < 0) & death_cross
 
     below_ma = data["close"] < data["ma"]
     above_ma = data["close"] > data["ma"]
