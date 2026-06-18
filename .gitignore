@@ -1,4 +1,6 @@
 /data/
+data_futures/weighted_15min/
+data_futures/sina_daily_main/
 __pycache__/
 *.pyc
 findings.md
