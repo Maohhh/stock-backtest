@@ -10,16 +10,18 @@ from .rsi import rsi
 from .bollinger import bollinger_bands
 from .kdj import kdj
 from .atr import atr
+from .lon import lon
 from .main_force import max_force_resonance, xpct_only
 
 __all__ = [
     'sma',
-    'ema', 
+    'ema',
     'macd',
     'rsi',
     'bollinger_bands',
     'kdj',
     'atr',
+    'lon',
     'max_force_resonance',
     'xpct_only',
 ]

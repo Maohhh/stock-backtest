@@ -1,4 +1,8 @@
 /data/
+# 期货行情数据（主连日线，约 11MB）由 lon_macd_backtest.py 从数据分支自动提取，不入库
+/data_futures/
 findings.md
 progress.md
 task_plan.md
+__pycache__/
+*.pyc

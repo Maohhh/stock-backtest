@@ -110,6 +110,7 @@ python download_data.py --symbols 000001.SZ --storage-backend sqlite
 | 布林带 | `bollinger_bands(df, period=20, std_dev=2.0, column="close")` | 指定价格列 | 含 `middle/upper/lower` 的 DataFrame |
 | KDJ | `kdj(df, n=9, m1=3, m2=3)` | `high/low/close` | 含 `K/D/J` 的 DataFrame |
 | ATR | `atr(df, period=14)` | `high/low/close` | `pd.Series` |
+| LON 长线 | `lon(df, fast=10, slow=20)` | `high/low/close/volume` | 含 `LONG/DIFF/DEA/LON` 的 DataFrame，`LON>0` 为上涨趋势 |
 | 主力共振 | `max_force_resonance(df, n=12, m=240, bp_buy=0, sp_sell=95)` | `open/high/low/close/volume` | 含 XPCT、主力净流入、买卖信号的 DataFrame |
 | XPCT | `xpct_only(df, n=12, m=240)` | `close` | `pd.Series`，范围 0-100 |
 
@@ -338,6 +339,27 @@ plot_strategy_comparison(
     labels=["买入持有", "MACD", "RSI"],
 )
 ```
+
+## LON + MACD 期货多空策略
+
+`lon_macd_backtest.py` 实现并回测一个 LON 长线 + MACD 的趋势跟随策略，支持做多 / 做空，
+数据使用期货**主力连续后复权拼接日线**（`data_futures/sina_daily_main/`，缺失时自动从数据分支提取）。
+
+策略规则：
+
+- **做多**：LON > 0（上涨趋势）且 MACD 金叉、DIF/DEA 均在 0 轴上方时开多；连续 3 根 K 线收盘价跌破 20 日均线时平多。
+- **做空**：LON < 0（下跌趋势）且 MACD 死叉、DIF/DEA 均在 0 轴下方时开空；连续 3 根 K 线收盘价站上 20 日均线时平空。
+
+相关模块：`src/indicators/lon.py`（LON 指标）、`src/strategies/lon_macd_strategy.py`（信号）、
+`src/backtest/futures_engine.py`（多空向量化回测引擎，信号收盘确认、下一根 K 线建仓，无未来函数）。
+
+```bash
+python lon_macd_backtest.py              # 回测全部 43 个主力连续品种
+python lon_macd_backtest.py RB0 IF0 CU0  # 只测指定品种
+python lon_macd_backtest.py --no-plot    # 跳过画图
+```
+
+回测产物输出到 `lon_macd_results/`：`REPORT.md`（汇总报告）、`summary.csv`、`trades.csv` 和净值图。
 
 ## 数据格式约定
 
