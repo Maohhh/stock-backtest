@@ -45,7 +45,8 @@ stock-backtest/
 ├── quick_backtest.py       # 快速回测示例
 ├── lon_strategy_backtest.py # LON 策略跨品种/跨周期回测（Yahoo 数据）
 ├── lon_long_short_backtest.py # LON 15分钟多空双向回测（含做空，指标反向）
-├── results/                # 回测报告输出（lon_strategy_report.md / lon_long_short_report.md）
+├── lon_futures_backtest.py # LON 国内期货全品种15分钟回测（数据见 futures-weighted-data-download 分支）
+├── results/                # 回测报告输出（lon_strategy_report / lon_long_short_report / lon_futures_report）
 ├── example_usage.py        # 综合示例
 ├── USAGE.md                # 详细使用指南
 ├── tests/
