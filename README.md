@@ -44,7 +44,8 @@ stock-backtest/
 ├── download_data.py        # 批量下载日线数据
 ├── quick_backtest.py       # 快速回测示例
 ├── lon_strategy_backtest.py # LON 策略跨品种/跨周期回测（Yahoo 数据）
-├── results/                # 回测报告输出（如 lon_strategy_report.md）
+├── lon_long_short_backtest.py # LON 15分钟多空双向回测（含做空，指标反向）
+├── results/                # 回测报告输出（lon_strategy_report.md / lon_long_short_report.md）
 ├── example_usage.py        # 综合示例
 ├── USAGE.md                # 详细使用指南
 ├── tests/
