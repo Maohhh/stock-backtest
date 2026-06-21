@@ -29,13 +29,26 @@ from lon_futures_backtest import (
 from lon_long_short_backtest import _simulate, _metrics, _trade_stats
 
 
-def build_targets_sm(df: pd.DataFrame) -> np.ndarray:
-    """按状态机逐 bar 生成目标仓位 (+1 多 / -1 空 / 0 空仓)。"""
+def build_targets_sm(df: pd.DataFrame, stop_grow: int = 1) -> np.ndarray:
+    """按状态机逐 bar 生成目标仓位 (+1 多 / -1 空 / 0 空仓)。
+
+    stop_grow: 触发止损所需的"连续变长根数"。1=原版(1根变长就止损)，
+               2/3=放宽止损(需连续 2/3 根变长才止损)，可显著降低换手。
+    """
     ld = lon(df)
     L = ld['lon'].values
     length = np.abs(L)
     n = len(df)
     warm = max(DEA_PERIOD, 3) + 3
+
+    grow = np.zeros(n, dtype=bool)
+    grow[1:] = length[1:] > length[:-1]
+    # growk[t]: 最近 stop_grow 根是否全部变长
+    growk = grow.copy()
+    for k in range(1, stop_grow):
+        shifted = np.zeros(n, dtype=bool)
+        shifted[k:] = grow[:-k]
+        growk &= shifted
 
     targets = np.zeros(n)
     pos = 0
@@ -44,19 +57,19 @@ def build_targets_sm(df: pd.DataFrame) -> np.ndarray:
             targets[t] = 0
             continue
         len0, len1, len2 = length[t], length[t - 1], length[t - 2]
-        grow = len0 > len1            # 当前柱比上一根变长
         shrink = len0 < len1          # 变短
         shrink2 = shrink and (len1 < len2)  # 连续两根变短
+        stop_now = growk[t]           # 连续 stop_grow 根变长
         lon_t = L[t]
 
         # 先处理离场（止损/止盈）
         if pos == 1:
-            if lon_t < 0 and grow:        # 多单：仍在 0 轴下方且绿柱变长 -> 止损
+            if lon_t < 0 and stop_now:    # 多单：仍在 0 轴下方且达到止损条件
                 pos = 0
             elif lon_t > 0 and shrink:    # 多单：已到 0 轴上方且红柱见顶变短 -> 止盈
                 pos = 0
         elif pos == -1:
-            if lon_t > 0 and grow:        # 空单：仍在 0 轴上方且红柱变长 -> 止损
+            if lon_t > 0 and stop_now:    # 空单：仍在 0 轴上方且达到止损条件
                 pos = 0
             elif lon_t < 0 and shrink:    # 空单：已到 0 轴下方且绿柱见底变短 -> 止盈
                 pos = 0
