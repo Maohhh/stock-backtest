@@ -21,7 +21,8 @@ from src.strategies import (
     MACDStrategy,
     BollingerStrategy,
     KDJStrategy,
-    MainForceResonanceStrategy
+    MainForceResonanceStrategy,
+    LONStrategy
 )
 from src.backtest.engine import BacktestEngine
 
@@ -59,8 +60,9 @@ def quick_backtest(
         '布林带': BollingerStrategy(),
         'KDJ': KDJStrategy(),
         '主力共振': MainForceResonanceStrategy(n=12, m=240),
+        'LON长线': LONStrategy(),
     }
-    
+
     # 运行回测
     print(f"\n开始回测（初始资金: ¥{initial_cash:,.0f}）...")
     print("-" * 80)
@@ -124,8 +126,9 @@ def batch_backtest(
         '布林带': BollingerStrategy(),
         'KDJ': KDJStrategy(),
         '主力共振': MainForceResonanceStrategy(n=12, m=240),
+        'LON长线': LONStrategy(),
     }
-    
+
     strategy = strategies.get(strategy_name)
     if not strategy:
         print(f"❌ 未知策略: {strategy_name}")

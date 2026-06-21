@@ -11,7 +11,8 @@ from pathlib import Path
 # 添加src到路径
 sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
-from indicators import sma, ema, macd, rsi, bollinger_bands, kdj, atr
+from indicators import sma, ema, macd, rsi, bollinger_bands, kdj, atr, lon
+from indicators.lon import _tdx_sma
 
 
 class TestIndicators(unittest.TestCase):
@@ -163,6 +164,54 @@ class TestIndicators(unittest.TestCase):
         # ATR代表波幅，应该始终为正
         self.assertTrue((result >= 0).all())
     
+    def test_lon_basic(self):
+        """测试LON长线指标基本功能"""
+        result = lon(self.df)
+
+        self.assertIsInstance(result, pd.DataFrame)
+        for col in ['long', 'diff', 'dea', 'lon', 'lonma', 'lon_len']:
+            self.assertIn(col, result.columns)
+        self.assertEqual(len(result), len(self.df))
+        # min_periods=1，不应出现NaN
+        self.assertFalse(result.isna().any().any())
+
+    def test_lon_relationship(self):
+        """测试LON计算关系：LON = DIFF - DEA，lon_len = abs(LON)"""
+        result = lon(self.df)
+
+        expected_lon = result['diff'] - result['dea']
+        expected_lon.name = 'lon'
+        pd.testing.assert_series_equal(result['lon'], expected_lon)
+        # 柱体长度为绝对值
+        self.assertTrue((result['lon_len'] == result['lon'].abs()).all())
+
+    def test_lon_tdx_sma(self):
+        """测试通达信 SMA(X,N,1) 递归公式实现正确性"""
+        s = pd.Series([1.0, 2.0, 3.0, 4.0, 5.0])
+        n = 10
+        # 手动递归: Y = (X + (N-1)*Y_prev)/N
+        manual = []
+        y = None
+        for x in s:
+            y = x if y is None else (x + (n - 1) * y) / n
+            manual.append(y)
+        result = _tdx_sma(s, n, 1)
+        np.testing.assert_allclose(result.values, manual)
+
+    def test_lon_zero_volume(self):
+        """测试零成交量品种(如外汇)：LON退化为0，不应报错或产生信号"""
+        zero_vol_df = self.df.copy()
+        zero_vol_df['volume'] = 0
+        result = lon(zero_vol_df)
+        # 无量时能量恒为0
+        self.assertTrue((result['lon'] == 0).all())
+        self.assertFalse(result.isna().any().any())
+
+    def test_lon_validation(self):
+        """测试LON缺少必需列时报错"""
+        with self.assertRaises(ValueError):
+            lon(pd.DataFrame({'close': [1, 2, 3]}))  # 缺少 high/low/volume
+
     def test_column_validation(self):
         """测试列名验证"""
         bad_df = pd.DataFrame({'price': [1, 2, 3]})

@@ -4,10 +4,10 @@ A 股历史数据获取、技术指标计算、策略回测和结果可视化框
 
 ## 功能概览
 
-- 数据获取：支持 Baostock、AkShare、Sina，`auto` 模式优先使用 Baostock，失败后自动 fallback。
+- 数据获取：支持 Baostock、AkShare、Sina，`auto` 模式优先使用 Baostock，失败后自动 fallback；另含 Yahoo Finance 数据源，可跨市场（美股/指数/加密货币/期货/外汇）和跨周期（日线/15 分钟）获取行情。
 - 本地存储：支持 Parquet 和 SQLite，便于批量下载后离线回测。
-- 技术指标：已实现 MA、MACD、RSI、布林带、KDJ、ATR、主力共振/XPCT 等指标。
-- 策略模块：内置买入持有、均线交叉、MACD、RSI、布林带、KDJ、ATR、主力共振策略。
+- 技术指标：已实现 MA、MACD、RSI、布林带、KDJ、ATR、主力共振/XPCT、LON 龙系长线 等指标。
+- 策略模块：内置买入持有、均线交叉、MACD、RSI、布林带、KDJ、ATR、主力共振、LON 龙系长线策略。
 - 回测引擎：支持单标的日线回测，输出收益率、最大回撤、夏普比率、交易记录和每日净值。
 - 可视化：支持 matplotlib 和 plotly 绘制净值、回撤、仓位资金、交易点和策略对比。
 
@@ -26,7 +26,8 @@ stock-backtest/
 │   │   ├── bollinger.py    # 布林带
 │   │   ├── kdj.py          # KDJ
 │   │   ├── atr.py          # ATR
-│   │   └── main_force.py   # 主力共振 / XPCT
+│   │   ├── main_force.py   # 主力共振 / XPCT
+│   │   └── lon.py          # LON 龙系长线（量价能量）
 │   ├── strategies/
 │   │   ├── base.py                 # BaseStrategy / 买入持有 / 均线交叉
 │   │   ├── macd_strategy.py        # MACD 金叉死叉策略
@@ -34,13 +35,16 @@ stock-backtest/
 │   │   ├── bollinger_strategy.py   # 布林带策略
 │   │   ├── kdj_strategy.py         # KDJ 策略
 │   │   ├── atr_strategy.py         # ATR 波动率突破策略
-│   │   └── main_force_strategy.py  # 主力共振策略
+│   │   ├── main_force_strategy.py  # 主力共振策略
+│   │   └── lon_strategy.py         # LON 龙系长线策略
 │   ├── backtest/
 │   │   └── engine.py       # BacktestEngine
 │   └── visualization/
 │       └── charts.py       # 回测图表、交易信号、策略对比
 ├── download_data.py        # 批量下载日线数据
 ├── quick_backtest.py       # 快速回测示例
+├── lon_strategy_backtest.py # LON 策略跨品种/跨周期回测（Yahoo 数据）
+├── results/                # 回测报告输出（如 lon_strategy_report.md）
 ├── example_usage.py        # 综合示例
 ├── USAGE.md                # 详细使用指南
 ├── tests/
@@ -112,13 +116,14 @@ python download_data.py --symbols 000001.SZ --storage-backend sqlite
 | ATR | `atr(df, period=14)` | `high/low/close` | `pd.Series` |
 | 主力共振 | `max_force_resonance(df, n=12, m=240, bp_buy=0, sp_sell=95)` | `open/high/low/close/volume` | 含 XPCT、主力净流入、买卖信号的 DataFrame |
 | XPCT | `xpct_only(df, n=12, m=240)` | `close` | `pd.Series`，范围 0-100 |
+| LON 龙系长线 | `lon(df, diff_period=10, dea_period=20, ma_period=6)` | `high/low/close/volume` | 含 `long/diff/dea/lon/lonma/lon_len` 的 DataFrame（量价能量柱，依赖成交量） |
 
 示例：
 
 ```python
 from src.indicators import (
     sma, ema, macd, rsi, bollinger_bands, kdj, atr,
-    max_force_resonance, xpct_only,
+    max_force_resonance, xpct_only, lon,
 )
 
 df["ma20"] = sma(df, period=20)
@@ -148,6 +153,10 @@ df["xpct"] = main_force["xpct"]
 df["main_net_inflow"] = main_force["main_net_inflow"]
 df["strong_buy"] = main_force["strong_buy"]
 df["xg100_s"] = main_force["xg100_s"]
+
+lon_df = lon(df)
+df["lon"] = lon_df["lon"]          # 长线能量柱，>0 多头 / <0 空头
+df["lon_len"] = lon_df["lon_len"]  # 柱体长度 abs(lon)
 ```
 
 ## 策略列表
@@ -165,6 +174,7 @@ df["xg100_s"] = main_force["xg100_s"]
 | KDJ | `KDJStrategy` | K 上穿 D 且 J 低位买入，K 下穿 D 且 J 高位卖出 | `n=9`, `m1=3`, `m2=3`, `j_buy_threshold=20`, `j_sell_threshold=80` |
 | ATR | `ATRStrategy` | 价格突破 ATR 通道上轨买入，跌破下轨卖出 | `atr_period=14`, `ma_period=20`, `multiplier=2.0`, `use_sma=True` |
 | 主力共振 | `MainForceResonanceStrategy` | XPCT 低位和主力净流入共振买入，高位出货信号卖出 | `n=12`, `m=240`, `bp_buy=0`, `sp_sell=95`, `use_strong_buy_only=True` |
+| LON 龙系长线 | `LONStrategy` | LON 0 轴下方柱体连续两天变短买入（空头能量衰竭），0 轴上方柱体连续两天变短卖出（多头能量衰竭） | `diff_period=10`, `dea_period=20`, `ma_period=6`, `amount=100` |
 
 单策略示例：
 

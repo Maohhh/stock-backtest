@@ -343,10 +343,86 @@ class BaostockDataSource:
         return None
 
 
+class YahooFinanceDataSource:
+    """
+    Yahoo Finance 数据源 (HTTP)
+
+    通过公开的 chart 接口获取行情，覆盖范围广：美股 / 指数 / ETF /
+    加密货币 / 期货 / 外汇，以及部分海外可访问的中国指数(如 000001.SS)。
+    同时支持日线与分钟线(15m 最多约 60 天)，适合跨品种、跨周期回测。
+    """
+
+    BASE_URL = "https://query1.finance.yahoo.com/v8/finance/chart/"
+
+    def __init__(self):
+        self.session = requests.Session()
+        self.session.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        })
+
+    def get_kline(
+        self,
+        symbol: str,
+        range_: str = "2y",
+        interval: str = "1d",
+    ) -> Optional[pd.DataFrame]:
+        """
+        获取 K 线数据
+
+        Args:
+            symbol: Yahoo 代码，如 "AAPL", "BTC-USD", "^GSPC", "GC=F", "000001.SS"
+            range_: 时间跨度，如 "1y", "2y", "5y", "60d"(分钟线上限约 60 天)
+            interval: 周期，如 "1d"(日线), "15m"(15分钟), "60m"
+
+        Returns:
+            DataFrame，列为 date, open, high, low, close, volume
+        """
+        try:
+            url = f"{self.BASE_URL}{symbol}?range={range_}&interval={interval}"
+            resp = self.session.get(url, timeout=20)
+            resp.raise_for_status()
+            payload = resp.json()
+
+            result = payload.get("chart", {}).get("result")
+            if not result:
+                return None
+            result = result[0]
+
+            timestamps = result.get("timestamp")
+            quote = result.get("indicators", {}).get("quote", [{}])[0]
+            if not timestamps or not quote:
+                return None
+
+            df = pd.DataFrame({
+                "date": pd.to_datetime(timestamps, unit="s"),
+                "open": quote.get("open"),
+                "high": quote.get("high"),
+                "low": quote.get("low"),
+                "close": quote.get("close"),
+                "volume": quote.get("volume"),
+            })
+
+            # 去掉停牌/无成交导致的空值K线
+            df = df.dropna(subset=["open", "high", "low", "close"]).reset_index(drop=True)
+            df["volume"] = df["volume"].fillna(0)
+            if df.empty:
+                return None
+
+            # 日线统一为日期字符串，分钟线保留时间戳
+            if interval.endswith("d") or interval.endswith("wk") or interval.endswith("mo"):
+                df["date"] = df["date"].dt.strftime("%Y-%m-%d")
+
+            return df[["date", "open", "high", "low", "close", "volume"]]
+
+        except Exception as e:
+            print(f"Yahoo Finance 数据源获取 {symbol} 失败: {e}")
+            return None
+
+
 class DataManager:
     """
     数据管理器
-    
+
     自动管理多个数据源，支持 fallback 机制
     """
     
